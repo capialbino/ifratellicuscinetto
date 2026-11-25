@@ -2,6 +2,7 @@ import {
   createSessionCookie,
   isBackendConfigured,
   jsonResponse,
+  normalizeAuthorId,
   verifyCredentials,
 } from '../../../lib/admin-server.js';
 
@@ -10,7 +11,7 @@ export async function onRequestPost({ request, env }) {
     return jsonResponse(
       {
         error:
-          'Variabili ambiente mancanti su Cloudflare Pages (servono GITHUB_TOKEN e ADMIN_PASSWORD o ADMIN_PASSWORDS).',
+          'Configurazione server incompleta (verifica i secrets GITHUB_TOKEN e ADMIN_PASSWORD / ADMIN_PASSWORDS).',
       },
       503
     );
@@ -23,11 +24,11 @@ export async function onRequestPost({ request, env }) {
     return jsonResponse({ error: 'Richiesta JSON non valida.' }, 400);
   }
 
-  const author = String(body?.author || '').trim();
+  const author = normalizeAuthorId(body?.author);
   const password = String(body?.password || '');
 
   if (!verifyCredentials(env, author, password)) {
-    return jsonResponse({ error: 'Autore o password non corretti.' }, 401);
+    return jsonResponse({ error: 'Utente o password non corretti.' }, 401);
   }
 
   const cookie = await createSessionCookie(request, env, author);

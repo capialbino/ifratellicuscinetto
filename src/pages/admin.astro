@@ -20,27 +20,32 @@ const initialConfigJson = JSON.stringify(siteConfig);
       <div class="login-card">
         <div class="login-head">
           <span class="badge badge-hybrid">Area Redazione</span>
-          <h1>Scrivi e pubblica un articolo</h1>
+          <h1>Accedi alla redazione</h1>
           <p id="mode-subtitle" class="muted">
-            Verifica modalità di pubblicazione in corso...
+            Inserisci il tuo nome utente (nome-cognome) e la password.
           </p>
         </div>
 
-        <div id="mode-alert" class="info-banner" hidden></div>
-
-        <!-- Cloudflare Password Login -->
-        <form id="cf-login-form" class="login-form" hidden>
+        <form id="cf-login-form" class="login-form">
           <label class="field">
-            <span>Chi sta scrivendo?</span>
-            <select id="login-author" required>
+            <span>Utente (nome-cognome)</span>
+            <input
+              id="login-author"
+              type="text"
+              list="authors-datalist"
+              placeholder="es. federico-pappafava"
+              autocomplete="username"
+              required
+            />
+            <datalist id="authors-datalist">
               {authorsList.map((a) => (
-                <option value={a.id}>{a.name} — {a.role}</option>
+                <option value={a.id}>{a.name}</option>
               ))}
-            </select>
+            </datalist>
           </label>
 
           <label class="field">
-            <span>Password redazione</span>
+            <span>Password</span>
             <input
               id="login-password"
               type="password"
@@ -51,48 +56,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
           </label>
 
           <button type="submit" class="btn btn-primary" id="cf-login-btn">
-            Entra in redazione
-          </button>
-        </form>
-
-        <!-- GitHub Direct Mode Fallback (usato su GitHub Pages statico) -->
-        <form id="gh-login-form" class="login-form" hidden>
-          <label class="field">
-            <span>Chi sta scrivendo?</span>
-            <select id="gh-author" required>
-              {authorsList.map((a) => (
-                <option value={a.id}>{a.name} — {a.role}</option>
-              ))}
-            </select>
-          </label>
-
-          <label class="field">
-            <span>Repository GitHub</span>
-            <input
-              id="gh-repo"
-              type="text"
-              value="capialbino/ifratellicuscinetto"
-              required
-            />
-          </label>
-
-          <label class="field">
-            <span>GitHub Fine-Grained Token (permesso Contents: Read &amp; Write)</span>
-            <input
-              id="gh-token"
-              type="password"
-              placeholder="github_pat_..."
-              required
-            />
-          </label>
-
-          <label class="checkbox-inline">
-            <input id="gh-remember" type="checkbox" />
-            <span>Ricorda il token su questo browser</span>
-          </label>
-
-          <button type="submit" class="btn btn-primary">
-            Accedi con GitHub Token
+            Accedi
           </button>
         </form>
 
@@ -448,10 +412,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
   // Elements
   const loginView = document.getElementById('login-view')!;
   const studioView = document.getElementById('studio-view')!;
-  const modeSubtitle = document.getElementById('mode-subtitle')!;
-  const modeAlert = document.getElementById('mode-alert')!;
   const cfLoginForm = document.getElementById('cf-login-form') as HTMLFormElement;
-  const ghLoginForm = document.getElementById('gh-login-form') as HTMLFormElement;
   const loginError = document.getElementById('login-error')!;
 
   const studioModeBadge = document.getElementById('studio-mode-badge')!;
@@ -1026,48 +987,18 @@ const initialConfigJson = JSON.stringify(siteConfig);
   }
 
   async function initAdmin() {
+    backendMode = 'cloudflare';
     try {
       const res = await fetch(`${API_BASE}/session`);
       const contentType = res.headers.get('content-type') || '';
       if (res.ok && contentType.includes('application/json')) {
         const data = await res.json();
-        backendMode = 'cloudflare';
-        if (!data.configured) {
-          modeSubtitle.textContent = 'Backend Cloudflare rilevato, ma mancano le variabili ambiente.';
-          modeAlert.innerHTML =
-            'Imposta <code>GITHUB_TOKEN</code> e <code>ADMIN_PASSWORD</code> nelle impostazioni di Cloudflare Pages (Settings → Environment variables).';
-          modeAlert.hidden = false;
-        } else {
-          modeSubtitle.textContent = 'Accedi con il tuo nome e la password della redazione.';
-        }
-        cfLoginForm.hidden = false;
         if (data.authenticated && data.author) {
           enterStudio(data.author);
         }
-        return;
       }
     } catch {
-      // Fallback a GitHub Direct
-    }
-
-    backendMode = 'github-direct';
-    modeSubtitle.textContent = 'Sei su hosting statico (GitHub Pages): accesso diretto tramite GitHub Token.';
-    modeAlert.innerHTML =
-      'Su <strong>GitHub Pages</strong> non c’è un backend per login con password: puoi entrare qui con un <em>GitHub Fine-Grained Token</em> oppure passare a <strong>Cloudflare Pages</strong> (€0) per usare il login semplice con password.';
-    modeAlert.hidden = false;
-    ghLoginForm.hidden = false;
-
-    const saved = localStorage.getItem('ifc_gh_creds');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed?.token && parsed?.repo) {
-          ghCreds = { token: parsed.token, repo: parsed.repo, branch: parsed.branch || 'main' };
-          enterStudio(parsed.author || 'alessandro-capialbi');
-        }
-      } catch {
-        localStorage.removeItem('ifc_gh_creds');
-      }
+      // L'utente vede comunque la schermata pulita di login
     }
   }
 
@@ -1075,7 +1006,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
   cfLoginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     clearError();
-    const author = (document.getElementById('login-author') as HTMLSelectElement).value;
+    const author = (document.getElementById('login-author') as HTMLInputElement).value.trim();
     const password = (document.getElementById('login-password') as HTMLInputElement).value;
     try {
       const res = await fetch(`${API_BASE}/login`, {
@@ -1083,43 +1014,20 @@ const initialConfigJson = JSON.stringify(siteConfig);
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ author, password }),
       });
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error('Servizio di autenticazione non raggiungibile da questo indirizzo.');
+      }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Accesso negato');
+      if (!res.ok) throw new Error(data.error || 'Utente o password non corretti.');
       enterStudio(data.author);
     } catch (err: any) {
       showError(err?.message || 'Errore di autenticazione.');
     }
   });
 
-  ghLoginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    clearError();
-    const author = (document.getElementById('gh-author') as HTMLSelectElement).value;
-    const repo = (document.getElementById('gh-repo') as HTMLInputElement).value.trim();
-    const token = (document.getElementById('gh-token') as HTMLInputElement).value.trim();
-    const remember = (document.getElementById('gh-remember') as HTMLInputElement).checked;
-    ghCreds = { token, repo, branch: 'main' };
-
-    try {
-      const check = await ghApi('/contents/src/content/articles');
-      if (!check.ok) throw new Error('Token non valido o permessi insufficienti sul repository.');
-      if (remember) {
-        localStorage.setItem('ifc_gh_creds', JSON.stringify({ ...ghCreds, author }));
-      }
-      enterStudio(author);
-    } catch (err: any) {
-      ghCreds = null;
-      showError(err?.message || 'Connessione GitHub fallita.');
-    }
-  });
-
   document.getElementById('logout-btn')?.addEventListener('click', async () => {
-    if (backendMode === 'cloudflare') {
-      await fetch(`${API_BASE}/logout`, { method: 'POST' });
-    } else {
-      localStorage.removeItem('ifc_gh_creds');
-      ghCreds = null;
-    }
+    await fetch(`${API_BASE}/logout`, { method: 'POST' }).catch(() => {});
     showLoginScreen();
   });
 
