@@ -114,15 +114,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
               />
             </label>
 
-            <label class="field">
-              <span>Slug URL *</span>
-              <input
-                id="art-slug"
-                type="text"
-                placeholder="cuscinetti-magnetici-attivi"
-                required
-              />
-            </label>
+            <input id="art-slug" type="hidden" />
 
             <label class="field">
               <span>Autore *</span>
@@ -789,7 +781,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
     const description = descInput.value.trim();
     const body = bodyInput.value.trim();
     if (!title || !slug || !description || !body) {
-      showBanner('Compila titolo, slug, descrizione e contenuto dell’articolo.', true);
+      showBanner('Compila titolo, descrizione e contenuto dell’articolo.', true);
       return;
     }
 
