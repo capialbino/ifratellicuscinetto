@@ -65,8 +65,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
       <div class="studio-topbar">
         <div class="container studio-topbar-inner">
           <div class="studio-status">
-            <span class="badge badge-hybrid" id="studio-mode-badge">Cloudflare Admin</span>
-            <span id="studio-user-label" class="muted"></span>
+            <span id="studio-avatar" class="profile-avatar-circle" title="Profilo" aria-label="Profilo"></span>
           </div>
 
           <div class="studio-tabs" role="tablist">
@@ -400,6 +399,11 @@ const initialConfigJson = JSON.stringify(siteConfig);
   const root = document.getElementById('admin-root');
   const API_BASE = root?.dataset.apiBase || '/api/admin';
 
+  const AUTHOR_META: Record<string, { name: string; initials: string; color: string }> = {
+    'federico-pappafava': { name: 'Federico Pappafava', initials: 'FP', color: '#c85a17' },
+    'alessandro-rossi': { name: 'Alessandro Rossi', initials: 'AR', color: '#0f766e' },
+    'alessandro-capialbi': { name: 'Alessandro Capialbi', initials: 'AC', color: '#2563eb' },
+  };
   const AUTHOR_NAMES: Record<string, string> = {
     'federico-pappafava': 'Federico Pappafava',
     'alessandro-rossi': 'Alessandro Rossi',
@@ -412,8 +416,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
   const cfLoginForm = document.getElementById('cf-login-form') as HTMLFormElement;
   const loginError = document.getElementById('login-error')!;
 
-  const studioModeBadge = document.getElementById('studio-mode-badge')!;
-  const studioUserLabel = document.getElementById('studio-user-label')!;
+  const studioAvatar = document.getElementById('studio-avatar')!;
   const articlesListEl = document.getElementById('articles-list')!;
   const articlesCountEl = document.getElementById('articles-count')!;
   const saveBanner = document.getElementById('save-banner')!;
@@ -976,9 +979,11 @@ const initialConfigJson = JSON.stringify(siteConfig);
     currentAuthor = authorId;
     loginView.hidden = true;
     studioView.hidden = false;
-    studioModeBadge.textContent =
-      backendMode === 'cloudflare' ? 'Cloudflare Pages Admin' : 'GitHub Direct Admin';
-    studioUserLabel.textContent = `Connesso come ${AUTHOR_NAMES[authorId] || authorId}`;
+    const meta = AUTHOR_META[authorId] || { name: authorId, initials: 'IF', color: '#0071e3' };
+    studioAvatar.textContent = meta.initials;
+    studioAvatar.style.background = meta.color;
+    studioAvatar.title = meta.name;
+    studioAvatar.setAttribute('aria-label', meta.name);
     resetFormForNew();
     fetchArticles().catch((err) => showBanner(err.message, true));
   }
@@ -1663,6 +1668,21 @@ const initialConfigJson = JSON.stringify(siteConfig);
     display: flex;
     align-items: center;
     gap: 0.75rem;
+  }
+
+  .profile-avatar-circle {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
+    user-select: none;
   }
 
   .studio-grid {
