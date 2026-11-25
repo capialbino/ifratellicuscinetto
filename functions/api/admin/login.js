@@ -6,6 +6,26 @@ import {
   verifyCredentials,
 } from '../../../lib/admin-server.js';
 
+const MAX_FAILED_ATTEMPTS = 8;
+const WINDOW_MS = 5 * 60 * 1000; // 5 minuti
+const failedByIp = new Map();
+
+function getClientIp(request) {
+  return (
+    request.headers.get('CF-Connecting-IP') ||
+    request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ||
+    'unknown'
+  );
+}
+
+function getRateState(ip, now) {
+  const rec = failedByIp.get(ip);
+  if (!rec || now - rec.firstAt > WINDOW_MS) {
+    return { count: 0, firstAt: now };
+  }
+  return rec;
+}
+
 export async function onRequestPost({ request, env }) {
   if (!isBackendConfigured(env)) {
     return jsonResponse(
@@ -14,6 +34,19 @@ export async function onRequestPost({ request, env }) {
           'Configurazione server incompleta (verifica i secrets GITHUB_TOKEN e ADMIN_PASSWORD / ADMIN_PASSWORDS).',
       },
       503
+    );
+  }
+
+  const now = Date.now();
+  const ip = getClientIp(request);
+  const state = getRateState(ip, now);
+
+  if (state.count >= MAX_FAILED_ATTEMPTS) {
+    const retryAfterSec = Math.max(1, Math.ceil((state.firstAt + WINDOW_MS - now) / 1000));
+    return jsonResponse(
+      { error: `Troppi tentativi falliti. Riprova tra ${Math.ceil(retryAfterSec / 60)} minuti.` },
+      429,
+      { 'Retry-After': String(retryAfterSec) }
     );
   }
 
@@ -28,9 +61,13 @@ export async function onRequestPost({ request, env }) {
   const password = String(body?.password || '');
 
   if (!verifyCredentials(env, author, password)) {
-    return jsonResponse({ error: 'Utente o password non corretti.' }, 401);
+    failedByIp.set(ip, { count: state.count + 1, firstAt: state.firstAt });
+    // Piccola pausa anti brute-force
+    await new Promise((r) => setTimeout(r, 400));
+    return jsonResponse({ error: 'Username o password non corretti.' }, 401);
   }
 
+  failedByIp.delete(ip);
   const cookie = await createSessionCookie(request, env, author);
   return jsonResponse(
     { ok: true, author },
