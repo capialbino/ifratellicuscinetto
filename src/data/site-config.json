@@ -18,15 +18,15 @@
   "hero": {
     "kickerIt": "Quaderno di ingegneria",
     "kickerEn": "Engineering notebook",
-    "titleIt": "Appunti tecnici su meccanica, AI e sistemi reali.",
-    "titleEn": "Technical notes on mechanical engineering, AI, and real-world systems.",
-    "leadIt": "Articoli approfonditi scritti da tre ingegneri: come funzionano davvero macchine, modelli fisici e algoritmi, senza saltare i passaggi scomodi.",
-    "leadEn": "In-depth articles written by three engineers: how machines, physical models, and algorithms actually work, without skipping the hard parts.",
+    "titleIt": "Panoramiche approfondite su meccanica, AI e applicazioni industriali",
+    "titleEn": "In-depth analysis of mechanical engineering, AI, and industrial applications.",
+    "leadIt": "Articoli approfonditi scritti da tre ingegneri: come funzionano davvero macchine, modelli fisici e algoritmi nella realtà industriale di ogni giorno",
+    "leadEn": "In-depth articles written by three engineers: how machines, physical models, and algorithms actually work in the daily industrial practice",
     "showPillars": false,
     "pillars": []
   },
   "footer": {
-    "taglineIt": "Appunti tecnici su meccanica, AI e sistemi reali.",
-    "taglineEn": "Technical notes on mechanical engineering, AI, and real-world systems."
+    "taglineIt": "Panoramiche approfondite su meccanica, AI e applicazioni industriali",
+    "taglineEn": "In-depth analysis of mechanical engineering, AI, and industrial applications."
   }
 }
