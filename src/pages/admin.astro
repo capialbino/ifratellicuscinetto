@@ -224,8 +224,6 @@ const initialConfigJson = JSON.stringify(siteConfig);
                   <button type="button" class="tb-btn tb-icon" data-insert="code" title="Blocco codice" aria-label="Codice">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
                   </button>
-                  <button type="button" class="tb-btn tb-label" data-insert="math-inline" title="Formula matematica nel testo">f(x)</button>
-                  <button type="button" class="tb-btn tb-label" data-insert="math-block" title="Equazione centrata">∑ Eq.</button>
                 </div>
 
                 <span class="tb-sep" aria-hidden="true"></span>
@@ -253,8 +251,8 @@ const initialConfigJson = JSON.stringify(siteConfig);
 
                 <!-- Assistente AI -->
                 <div class="tb-group" role="group" aria-label="Assistente AI">
-                  <button type="button" id="ai-format-btn" class="tb-btn tb-label tb-ai" title="Sistema impaginazione e formule LaTeX con l'AI">
-                    ✨ Formatta &amp; LaTeX
+                  <button type="button" id="ai-format-btn" class="tb-btn tb-label tb-ai" title="Sistema impaginazione e formule matematiche con l'AI">
+                    ✨ Formatta con AI
                   </button>
                   <button type="button" id="ai-undo-btn" class="tb-btn tb-label" hidden title="Ripristina il testo prima dell’ultima modifica AI">
                     ↩ Ripristina
@@ -1194,7 +1192,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
       }
 
       aiUndoBtn.hidden = false;
-      showBanner('Testo impaginato con Markdown e LaTeX. Controlla l’anteprima o clicca "Ripristina" per tornare indietro.');
+      showBanner('Articolo formattato con AI. Controlla il testo o clicca "Ripristina" per tornare indietro.');
     } catch (err: any) {
       showBanner(err?.message || 'Errore durante l’elaborazione AI.', true);
     } finally {
