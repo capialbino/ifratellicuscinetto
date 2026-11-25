@@ -27,18 +27,59 @@ function unquoteYaml(val) {
   return trimmed;
 }
 
+function stripInlineComment(val) {
+  let inSingle = false;
+  let inDouble = false;
+  for (let i = 0; i < val.length; i++) {
+    const ch = val[i];
+    if (ch === '\\' && inDouble) {
+      i++;
+      continue;
+    }
+    if (ch === "'" && !inDouble) {
+      inSingle = !inSingle;
+    } else if (ch === '"' && !inSingle) {
+      inDouble = !inDouble;
+    } else if (ch === '#' && !inSingle && !inDouble) {
+      if (i === 0 || /\s/.test(val[i - 1])) {
+        return val.slice(0, i).trim();
+      }
+    }
+  }
+  return val.trim();
+}
+
 function parseFrontmatter(raw) {
   const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!match) return { frontmatter: {}, body: raw };
   const fm = {};
-  for (const line of match[1].split(/\r?\n/)) {
-    const idx = line.indexOf(':');
+  let currentListKey = null;
+  for (const rawLine of match[1].split(/\r?\n/)) {
+    if (/^\s*#/.test(rawLine) || !rawLine.trim()) continue;
+
+    const listMatch = rawLine.match(/^\s+-\s+(.*)$/);
+    if (listMatch && currentListKey) {
+      if (!Array.isArray(fm[currentListKey])) fm[currentListKey] = [];
+      const itemVal = stripInlineComment(listMatch[1]);
+      if (itemVal) {
+        fm[currentListKey].push(unquoteYaml(itemVal));
+      }
+      continue;
+    }
+
+    currentListKey = null;
+    const idx = rawLine.indexOf(':');
     if (idx <= 0) continue;
-    const key = line.slice(0, idx).trim();
-    const rawVal = line.slice(idx + 1).trim();
-    if (rawVal === 'true') fm[key] = true;
-    else if (rawVal === 'false') fm[key] = false;
-    else if (rawVal.startsWith('[') && rawVal.endsWith(']')) {
+    const key = rawLine.slice(0, idx).trim();
+    const rawVal = stripInlineComment(rawLine.slice(idx + 1));
+    if (rawVal === '') {
+      fm[key] = '';
+      currentListKey = key;
+    } else if (rawVal === 'true') {
+      fm[key] = true;
+    } else if (rawVal === 'false') {
+      fm[key] = false;
+    } else if (rawVal.startsWith('[') && rawVal.endsWith(']')) {
       try {
         fm[key] = JSON.parse(rawVal);
       } catch {
@@ -250,7 +291,7 @@ async function translateWithGoogleFree(article) {
   const body = restoreTechnicalSegments(
     translatedChunks.join('\n\n'),
     tokens,
-    /\[\[\s*KEEP_(\d+)\s*\]\]/g
+    /\[\[\s*KEEP_(\d+)\s*\]\]/gi
   );
 
   return {
@@ -326,6 +367,11 @@ async function main() {
     const parsedIt = parseFrontmatter(itRaw);
 
     if (parsedIt.frontmatter.language && parsedIt.frontmatter.language !== 'it') {
+      continue;
+    }
+
+    if (parsedIt.frontmatter.draft === true) {
+      console.log(`[skip] ${entry.name} (bozza, non tradotta)`);
       continue;
     }
 

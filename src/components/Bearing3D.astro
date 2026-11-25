@@ -9,7 +9,7 @@ const { locale = 'it' } = Astro.props;
 <div class="bearing-stage" data-bearing-stage>
   <canvas class="bearing-canvas" aria-label={locale === 'it' ? 'Cuscinetto volvente 3D interattivo' : 'Interactive 3D rolling-element bearing'}></canvas>
   <div class="bearing-hud">
-    <span class="hud-hint">{locale === 'it' ? 'Trascina per ruotare · Scroll per zoom' : 'Drag to orbit · Scroll to zoom'}</span>
+    <span class="hud-hint">{locale === 'it' ? 'Trascina per ruotare' : 'Drag to rotate'}</span>
     <button type="button" class="hud-btn" data-bearing-toggle>
       {locale === 'it' ? 'Pausa' : 'Pause'}
     </button>
@@ -26,14 +26,29 @@ const { locale = 'it' } = Astro.props;
     const toggleBtn = stage.querySelector('[data-bearing-toggle]') as HTMLButtonElement | null;
     if (!canvas) return;
 
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    } catch {
+      const isEn = document.documentElement.lang === 'en';
+      const fallback = document.createElement('div');
+      fallback.className = 'bearing-fallback';
+      fallback.textContent = isEn
+        ? '3D preview unavailable (WebGL disabled).'
+        : 'Anteprima 3D non disponibile (WebGL disabilitato).';
+      stage.replaceChildren(fallback);
+      return;
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
 
     const scene = new THREE.Scene();
     const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    const roomEnv = new RoomEnvironment();
+    scene.environment = pmrem.fromScene(roomEnv, 0.04).texture;
+    pmrem.dispose();
+    roomEnv.dispose();
 
     const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
     camera.position.set(0, 1.35, 5.4);
@@ -42,6 +57,7 @@ const { locale = 'it' } = Astro.props;
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
     controls.enablePan = false;
+    controls.enableZoom = false;
     controls.minDistance = 3.2;
     controls.maxDistance = 8.5;
 
@@ -164,12 +180,6 @@ const { locale = 'it' } = Astro.props;
 
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let isPlaying = !prefersReduced;
-    let isVisible = true;
-
-    const io = new IntersectionObserver((entries) => {
-      isVisible = entries[0]?.isIntersecting ?? true;
-    });
-    io.observe(stage);
 
     if (toggleBtn) {
       const isEn = document.documentElement.lang === 'en';
@@ -183,10 +193,10 @@ const { locale = 'it' } = Astro.props;
       });
     }
 
+    let rafId: number | null = null;
     let prevTime = performance.now();
     function animate(now: number) {
-      requestAnimationFrame(animate);
-      if (!isVisible) return;
+      rafId = requestAnimationFrame(animate);
       const dt = Math.min((now - prevTime) / 1000, 0.05);
       prevTime = now;
 
@@ -202,7 +212,26 @@ const { locale = 'it' } = Astro.props;
       controls.update();
       renderer.render(scene, camera);
     }
-    requestAnimationFrame(animate);
+
+    const startLoop = () => {
+      if (rafId === null) {
+        prevTime = performance.now();
+        rafId = requestAnimationFrame(animate);
+      }
+    };
+
+    const stopLoop = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+    };
+
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) startLoop();
+      else stopLoop();
+    });
+    io.observe(stage);
   }
 
   document.querySelectorAll<HTMLElement>('[data-bearing-stage]').forEach(initBearingStage);
@@ -273,6 +302,18 @@ const { locale = 'it' } = Astro.props;
 
   .hud-btn:hover {
     border-color: var(--accent);
+  }
+
+  :global(.bearing-fallback) {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    text-align: center;
+    font-size: 0.88rem;
+    color: var(--text-muted);
   }
 
   @media (max-width: 640px) {

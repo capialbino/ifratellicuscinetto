@@ -11,11 +11,16 @@ const WINDOW_MS = 5 * 60 * 1000; // 5 minuti
 const failedByIp = new Map();
 
 function getClientIp(request) {
-  return (
-    request.headers.get('CF-Connecting-IP') ||
-    request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ||
-    'unknown'
-  );
+  return request.headers.get('CF-Connecting-IP') || 'unknown';
+}
+
+function evictExpiredRateStates(now) {
+  if (failedByIp.size <= 200) return;
+  for (const [key, rec] of failedByIp.entries()) {
+    if (now - rec.firstAt > WINDOW_MS) {
+      failedByIp.delete(key);
+    }
+  }
 }
 
 function getRateState(ip, now) {
@@ -38,6 +43,7 @@ export async function onRequestPost({ request, env }) {
   }
 
   const now = Date.now();
+  evictExpiredRateStates(now);
   const ip = getClientIp(request);
   const state = getRateState(ip, now);
 
@@ -60,7 +66,7 @@ export async function onRequestPost({ request, env }) {
   const author = normalizeAuthorId(body?.author);
   const password = String(body?.password || '');
 
-  if (!verifyCredentials(env, author, password)) {
+  if (!(await verifyCredentials(env, author, password))) {
     failedByIp.set(ip, { count: state.count + 1, firstAt: state.firstAt });
     // Piccola pausa anti brute-force
     await new Promise((r) => setTimeout(r, 400));

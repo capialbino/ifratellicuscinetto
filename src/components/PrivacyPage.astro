@@ -36,9 +36,10 @@ const isIt = locale === 'it';
           <p>
             Il sito <strong>{siteConfig.brand.name}</strong> è un progetto editoriale indipendente e non commerciale
             curato da Alessandro Capialbi, Federico Pappafava e Alessandro Rossi.
-            Per qualsiasi richiesta relativa alla privacy (incluso l’esercizio dei diritti GDPR), puoi contattare il
-            referente tecnico all’indirizzo email pubblicato sul profilo GitHub del progetto
-            (<code>github.com/capialbino/ifratellicuscinetto</code>).
+            Ai sensi dell’Art. 13.1.a del GDPR, il Titolare del trattamento è <strong>Alessandro Capialbi</strong>,
+            contattabile direttamente all’indirizzo email
+            <a href="mailto:capialbi.alessandro@gmail.com">capialbi.alessandro@gmail.com</a>
+            (repository pubblico del progetto: <code>github.com/capialbino/ifratellicuscinetto</code>).
           </p>
 
           <h2>2. Approccio Privacy-by-Design (Zero tracciamento)</h2>
@@ -76,24 +77,43 @@ const isIt = locale === 'it';
               <tr>
                 <td><code>ifc_admin_session</code></td>
                 <td>Cookie <code>HttpOnly; Secure; SameSite=Lax</code></td>
-                <td>Impostato <strong>solo</strong> per gli autori che accedono all’area riservata <code>/admin</code>. Mai impostato ai lettori.</td>
-                <td>Fino al logout (max 400 giorni)</td>
+                <td>Impostato <strong>solo</strong> per gli autori autenticati che accedono all’area riservata <code>/admin</code>. Mai impostato ai lettori.</td>
+                <td>Sessione scorrevole (sliding session) rinnovata a ogni uso di <code>/admin</code>, fino al logout (max 400 giorni)</td>
               </tr>
             </tbody>
           </table>
 
-          <h2>4. Dati tecnici di navigazione e hosting (Cloudflare)</h2>
+          <h2>4. Dati tecnici di navigazione, trasferimenti Extra-UE e area riservata</h2>
           <p>
-            Il sito è distribuito tramite l’infrastruttura <strong>Cloudflare, Inc.</strong> (CDN e protezione DDoS).
-            Nel normale funzionamento di rete, Cloudflare tratta temporaneamente dati tecnici di connessione (come
-            indirizzo IP, user-agent e timestamp) esclusivamente per erogare le pagine, prevenire abusi e garantire
-            la sicurezza del servizio (base giuridica: legittimo interesse, Art. 6.1.f GDPR).
+            Il sito è distribuito tramite l’infrastruttura <strong>Cloudflare, Inc.</strong> (CDN, edge routing e
+            protezione DDoS), mentre il codice sorgente e i flussi di pubblicazione sono ospitati su
+            <strong>GitHub, Inc.</strong> Nel normale funzionamento di rete, Cloudflare tratta temporaneamente dati
+            tecnici di connessione (come indirizzo IP, user-agent e timestamp) esclusivamente per erogare le pagine,
+            prevenire abusi e garantire la sicurezza del servizio (base giuridica: legittimo interesse, Art. 6.1.f GDPR).
+          </p>
+          <p>
+            <strong>Trasferimenti Extra-UE (Art. 13.1.f GDPR) e conservazione (Art. 13.2.a GDPR):</strong>
+            <strong>Cloudflare, Inc.</strong> e <strong>GitHub, Inc.</strong> hanno sede negli Stati Uniti.
+            Gli eventuali trasferimenti di dati tecnici verso Paesi extra-UE avvengono nel rispetto del
+            <strong>EU-US Data Privacy Framework (DPF)</strong> e/o delle <strong>Clausole Contrattuali Tipo (SCC)</strong>
+            approvate dalla Commissione Europea. I log tecnici di rete e sicurezza sono conservati dal fornitore
+            per il tempo strettamente necessario alla diagnostica e alla protezione DDoS (tipicamente da poche ore
+            fino a un massimo di 7–30 giorni).
+          </p>
+          <p>
+            <strong>Area riservata <code>/admin</code> (solo autori autenticati):</strong> esclusivamente per gli autori
+            che effettuano l’accesso all’area editoriale <code>/admin</code> (e mai per i lettori), il pannello utilizza
+            le <strong>Google Gemini API</strong> (assistenza editoriale, traduzione e generazione copertine SVG) e le
+            <strong>GitHub API</strong> (salvataggio e pubblicazione dei contenuti) in qualità di fornitori tecnici.
           </p>
 
           <h2>5. Diritti dell’interessato (Artt. 15–22 GDPR)</h2>
           <p>
             Hai il diritto di chiedere l’accesso, la rettifica, la cancellazione o la limitazione del trattamento
-            degli eventuali dati che ti riguardano, nonché di proporre reclamo al
+            degli eventuali dati che ti riguardano, nonché il <strong>diritto di opposizione (Art. 21 GDPR)</strong>
+            per i trattamenti basati sul legittimo interesse, scrivendo a
+            <a href="mailto:capialbi.alessandro@gmail.com">capialbi.alessandro@gmail.com</a>.
+            Resta salvo il diritto di proporre reclamo al
             <strong>Garante per la protezione dei dati personali</strong> (<code>garanteprivacy.it</code>).
           </p>
 
@@ -116,9 +136,11 @@ const isIt = locale === 'it';
           <h2>1. Data Controller</h2>
           <p>
             <strong>{siteConfig.brand.name}</strong> is an independent, non-commercial engineering publication
-            maintained by Alessandro Capialbi, Federico Pappafava, and Alessandro Rossi.
-            For any privacy inquiry or GDPR request, you can reach the technical maintainer via the project’s
-            GitHub repository (<code>github.com/capialbino/ifratellicuscinetto</code>).
+            curated by Alessandro Capialbi, Federico Pappafava, and Alessandro Rossi.
+            Pursuant to Art. 13(1)(a) GDPR, the Data Controller is <strong>Alessandro Capialbi</strong>, who can be
+            contacted directly at
+            <a href="mailto:capialbi.alessandro@gmail.com">capialbi.alessandro@gmail.com</a>
+            (public project repository: <code>github.com/capialbino/ifratellicuscinetto</code>).
           </p>
 
           <h2>2. Privacy-by-Design (Zero Tracking)</h2>
@@ -152,29 +174,58 @@ const isIt = locale === 'it';
                 <td><code>ifc_admin_session</code></td>
                 <td>Cookie (<code>HttpOnly; Secure; SameSite=Lax</code>)</td>
                 <td>Set <strong>only</strong> for authenticated authors accessing <code>/admin</code>. Never set for readers.</td>
-                <td>Until sign-out (max 400 days)</td>
+                <td>Sliding session renewed on <code>/admin</code> usage, until sign-out (max 400 days)</td>
               </tr>
             </tbody>
           </table>
 
-          <h2>4. Infrastructure & Security Logs (Cloudflare)</h2>
+          <h2>4. Infrastructure, Extra-EU Transfers &amp; <code>/admin</code> Processors</h2>
           <p>
-            Pages are delivered via <strong>Cloudflare, Inc.</strong> for global CDN delivery and DDoS mitigation.
-            Cloudflare processes standard technical network metadata (such as IP address and request headers) strictly
-            to deliver content and protect the service against abuse (legal basis: legitimate interest, Art. 6(1)(f) GDPR).
+            Pages are delivered via <strong>Cloudflare, Inc.</strong> for global CDN delivery and DDoS mitigation,
+            while source code and publishing workflows are hosted on <strong>GitHub, Inc.</strong>
+            Cloudflare processes standard technical network metadata (such as IP address, user-agent, and timestamps)
+            strictly to deliver content and protect the service against abuse (legal basis: legitimate interest,
+            Art. 6(1)(f) GDPR).
+          </p>
+          <p>
+            <strong>Extra-EU Transfers (Art. 13(1)(f) GDPR) &amp; Log Retention (Art. 13(2)(a) GDPR):</strong>
+            <strong>Cloudflare, Inc.</strong> and <strong>GitHub, Inc.</strong> are based in the United States.
+            Any transfer of technical data outside the EEA is safeguarded under the
+            <strong>EU-US Data Privacy Framework (DPF)</strong> and/or European Commission
+            <strong>Standard Contractual Clauses (SCCs)</strong>. Technical network and security logs are retained
+            only as long as strictly necessary for abuse mitigation and diagnostics (typically from a few hours up to
+            7–30 days depending on provider policies).
+          </p>
+          <p>
+            <strong>Restricted <code>/admin</code> Area (Authenticated Authors Only):</strong> exclusively for
+            authenticated authors using the editorial panel at <code>/admin</code> (never for readers), the site
+            relies on the <strong>Google Gemini API</strong> (translation, editorial assistance, and SVG cover
+            generation) and the <strong>GitHub API</strong> (content storage and publishing) as technical processors.
           </p>
 
           <h2>5. Your Rights (GDPR Arts. 15–22)</h2>
           <p>
             Under GDPR, you have the right to request access, rectification, erasure, or restriction of any personal
-            data, as well as the right to lodge a complaint with your local EU Data Protection Authority.
+            data, as well as the <strong>right to object (Art. 21 GDPR)</strong> to processing based on legitimate
+            interests, by emailing
+            <a href="mailto:capialbi.alessandro@gmail.com">capialbi.alessandro@gmail.com</a>.
+            You also have the right to lodge a complaint with your local EU Data Protection Authority (such as the
+            Italian Garante, <code>garanteprivacy.it</code>).
           </p>
 
-          <h2>6. Legal & Engineering Disclaimer</h2>
-          <p>
-            All articles, equations, and code snippets are provided for educational and informational purposes only
-            and do not constitute certified engineering advice or replace official standards and verification.
-          </p>
+          <h2>6. Legal &amp; Engineering Disclaimer</h2>
+          <ul>
+            <li>
+              <strong>Non-journalistic publication (Italian Law 62/2001):</strong> this website is not a registered
+              news publication as it is updated without any fixed periodicity and therefore does not constitute an
+              editorial product under Italian Law No. 62 of 7 March 2001.
+            </li>
+            <li>
+              <strong>Engineering disclaimer:</strong> all articles, equations, and code snippets are provided for
+              educational and informational purposes only and do not constitute certified engineering advice or
+              replace official standards and verification.
+            </li>
+          </ul>
         </>
       )}
     </div>

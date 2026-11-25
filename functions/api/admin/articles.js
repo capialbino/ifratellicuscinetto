@@ -96,8 +96,7 @@ export async function onRequestGet({ request, env }) {
   ]);
 
   if (!itListRes.ok) {
-    const errText = await itListRes.text();
-    return jsonResponse({ error: `Errore GitHub: ${errText}` }, itListRes.status);
+    return jsonResponse({ error: 'Errore nel caricamento degli articoli da GitHub.' }, itListRes.status);
   }
 
   const itEntries = await itListRes.json();
@@ -186,8 +185,8 @@ export async function onRequestPost({ request, env }) {
   const markdown = serializeArticleMarkdown(payload);
   const commitBody = {
     message: currentSha
-      ? `aggiorna articolo: ${payload.slug} (via admin)`
-      : `pubblica articolo: ${payload.slug} (via admin)`,
+      ? `aggiorna articolo: ${payload.slug} (admin: ${auth.session.author})`
+      : `pubblica articolo: ${payload.slug} (admin: ${auth.session.author})`,
     content: utf8ToBase64(markdown),
     branch,
     ...(currentSha ? { sha: currentSha } : {}),
@@ -200,8 +199,7 @@ export async function onRequestPost({ request, env }) {
   });
 
   if (!putRes.ok) {
-    const errText = await putRes.text();
-    return jsonResponse({ error: `Errore salvataggio GitHub: ${errText}` }, putRes.status);
+    return jsonResponse({ error: 'Errore durante il salvataggio su GitHub.' }, putRes.status);
   }
 
   const result = await putRes.json();
@@ -241,15 +239,14 @@ export async function onRequestDelete({ request, env }) {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      message: `elimina articolo: ${slug} (via admin)`,
+      message: `elimina articolo: ${slug} (admin: ${auth.session.author})`,
       sha: itData.sha,
       branch,
     }),
   });
 
   if (!delIt.ok) {
-    const errText = await delIt.text();
-    return jsonResponse({ error: `Errore eliminazione: ${errText}` }, delIt.status);
+    return jsonResponse({ error: 'Errore durante l\'eliminazione su GitHub.' }, delIt.status);
   }
 
   // Elimina anche eventuale traduzione inglese associata
@@ -260,8 +257,24 @@ export async function onRequestDelete({ request, env }) {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message: `elimina traduzione EN: ${slug} (via admin)`,
+        message: `elimina traduzione EN: ${slug} (admin: ${auth.session.author})`,
         sha: enData.sha,
+        branch,
+      }),
+    });
+  }
+
+  // Elimina anche eventuale cover SVG associata
+  const coverPath = `public/covers/${slug}.svg`;
+  const coverGet = await githubRequest(env, `/contents/${coverPath}?ref=${encodeURIComponent(branch)}`);
+  if (coverGet.ok) {
+    const coverData = await coverGet.json();
+    await githubRequest(env, `/contents/${coverPath}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: `elimina cover SVG: ${slug} (admin: ${auth.session.author})`,
+        sha: coverData.sha,
         branch,
       }),
     });

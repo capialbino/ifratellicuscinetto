@@ -40,6 +40,10 @@ function withSecurityHeaders(response) {
 }
 
 function isSameOriginMutation(request, url) {
+  const fetchSite = request.headers.get('Sec-Fetch-Site');
+  if (fetchSite && fetchSite !== 'same-origin') {
+    return false;
+  }
   const origin = request.headers.get('Origin');
   if (origin) {
     return origin === url.origin;
@@ -62,13 +66,27 @@ export default {
     const handlerModule = ROUTES[pathname];
 
     if (handlerModule) {
-      if (MUTATING_METHODS.has(request.method) && !isSameOriginMutation(request, url)) {
-        return withSecurityHeaders(
-          new Response(JSON.stringify({ error: 'Origine richiesta non autorizzata.' }), {
-            status: 403,
-            headers: { 'Content-Type': 'application/json; charset=utf-8' },
-          })
-        );
+      if (MUTATING_METHODS.has(request.method)) {
+        if (!isSameOriginMutation(request, url)) {
+          return withSecurityHeaders(
+            new Response(JSON.stringify({ error: 'Origine richiesta non autorizzata.' }), {
+              status: 403,
+              headers: { 'Content-Type': 'application/json; charset=utf-8' },
+            })
+          );
+        }
+
+        if (pathname !== '/api/admin/logout') {
+          const contentType = (request.headers.get('Content-Type') || '').toLowerCase();
+          if (!contentType.includes('application/json')) {
+            return withSecurityHeaders(
+              new Response(JSON.stringify({ error: 'Content-Type application/json richiesto.' }), {
+                status: 415,
+                headers: { 'Content-Type': 'application/json; charset=utf-8' },
+              })
+            );
+          }
+        }
       }
 
       const fnName = METHOD_MAP[request.method];

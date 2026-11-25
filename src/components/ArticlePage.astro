@@ -4,6 +4,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import { getAuthor } from '../data/authors';
 import { CATEGORY_LABELS, CATEGORY_META, estimateReadingTime, formatDate, LEVEL_LABELS, type Locale } from '../utils/articles';
 import { withBase } from '../utils/paths';
+import { siteConfig } from '../utils/site-config';
 
 interface Props {
   article: import('astro:content').CollectionEntry<'articles'>;
@@ -20,7 +21,7 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
 ---
 
 <BaseLayout
-  title={`${article.data.title} — I Fratelli Cuscinetto`}
+  title={`${article.data.title} — ${siteConfig.brand.name}`}
   description={article.data.description}
   activeNav="articoli"
   locale={locale}
@@ -114,26 +115,49 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
         const label = frame.dataset.label || (isEn ? '3D CAD Model' : 'Modello 3D');
         if (!src) continue;
 
-        frame.innerHTML = `
-          <canvas class="model-3d-canvas"></canvas>
-          <div class="model-3d-status">${isEn ? 'Loading 3D model...' : 'Caricamento modello 3D...'}</div>
-          <div class="model-3d-hud">
-            <span>${label}</span>
-            <span>${isEn ? 'Drag to rotate · Scroll to zoom' : 'Trascina per ruotare · Scroll per zoom'}</span>
-          </div>
-        `;
+        frame.textContent = '';
 
-        const canvas = frame.querySelector('.model-3d-canvas') as HTMLCanvasElement;
-        const statusEl = frame.querySelector('.model-3d-status') as HTMLElement;
+        const canvas = document.createElement('canvas');
+        canvas.className = 'model-3d-canvas';
+        canvas.setAttribute('aria-label', label);
 
-        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        const statusEl = document.createElement('div');
+        statusEl.className = 'model-3d-status';
+        statusEl.textContent = isEn ? 'Loading 3D model...' : 'Caricamento modello 3D...';
+
+        const hud = document.createElement('div');
+        hud.className = 'model-3d-hud';
+
+        const labelSpan = document.createElement('span');
+        labelSpan.textContent = label;
+
+        const hintSpan = document.createElement('span');
+        hintSpan.textContent = isEn ? 'Drag to rotate' : 'Trascina per ruotare';
+
+        hud.append(labelSpan, hintSpan);
+        frame.append(canvas, statusEl, hud);
+
+        let renderer: InstanceType<typeof THREE.WebGLRenderer>;
+        try {
+          renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        } catch {
+          statusEl.textContent = isEn
+            ? 'WebGL is not available on this device.'
+            : 'WebGL non disponibile su questo dispositivo.';
+          canvas.remove();
+          hud.remove();
+          continue;
+        }
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.1;
 
         const scene = new THREE.Scene();
         const pmrem = new THREE.PMREMGenerator(renderer);
-        scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+        const roomEnv = new RoomEnvironment();
+        scene.environment = pmrem.fromScene(roomEnv, 0.04).texture;
+        pmrem.dispose();
+        roomEnv.dispose();
 
         const camera = new THREE.PerspectiveCamera(36, 16 / 10, 0.05, 200);
         camera.position.set(2.4, 1.7, 3.2);
@@ -141,6 +165,7 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
         const controls = new OrbitControls(camera, canvas);
         controls.enableDamping = true;
         controls.dampingFactor = 0.06;
+        controls.enableZoom = false;
 
         const light = new THREE.DirectionalLight(0xffffff, 2.0);
         light.position.set(4, 6, 5);
@@ -176,18 +201,26 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
           }
         );
 
-        let visible = true;
-        new IntersectionObserver((entries) => {
-          visible = entries[0]?.isIntersecting ?? true;
-        }).observe(frame);
-
+        let rafId: number | null = null;
         const animate = () => {
-          requestAnimationFrame(animate);
-          if (!visible) return;
+          rafId = requestAnimationFrame(animate);
           controls.update();
           renderer.render(scene, camera);
         };
-        requestAnimationFrame(animate);
+        const startLoop = () => {
+          if (rafId === null) rafId = requestAnimationFrame(animate);
+        };
+        const stopLoop = () => {
+          if (rafId !== null) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+          }
+        };
+
+        new IntersectionObserver((entries) => {
+          if (entries[0]?.isIntersecting) startLoop();
+          else stopLoop();
+        }).observe(frame);
       }
     })();
   }
@@ -204,10 +237,14 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
       const copiedLabel = document.documentElement.lang === 'en' ? 'Copied' : 'Copiato';
       btn.textContent = copyLabel;
       btn.addEventListener('click', async () => {
-        const text = pre.querySelector('code')?.innerText || pre.innerText;
-        await navigator.clipboard.writeText(text);
-        btn.textContent = copiedLabel;
-        setTimeout(() => (btn.textContent = copyLabel), 1600);
+        const text = pre.querySelector('code')?.textContent || '';
+        try {
+          await navigator.clipboard.writeText(text);
+          btn.textContent = copiedLabel;
+          setTimeout(() => (btn.textContent = copyLabel), 1600);
+        } catch {
+          // Clipboard API unavailable
+        }
       });
       pre.appendChild(btn);
     }

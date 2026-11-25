@@ -167,6 +167,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
           <!-- Toolbar & Preview switcher -->
           <div class="editor-toolbar-wrap">
             <div class="format-toolbar" role="toolbar" aria-label="Strumenti di formattazione">
+              <button type="button" class="tb-btn" data-insert="p" title="Paragrafo normale">P</button>
               <button type="button" class="tb-btn" data-insert="h2" title="Titolo sezione">H2</button>
               <button type="button" class="tb-btn" data-insert="h3" title="Sottotitolo">H3</button>
               <button type="button" class="tb-btn" data-insert="bold" title="Grassetto"><strong>B</strong></button>
@@ -313,29 +314,17 @@ const initialConfigJson = JSON.stringify(siteConfig);
                 </select>
               </label>
 
-              <label class="field">
-                <span>Allineamento Hero</span>
-                <select id="cfg-hero-align">
-                  <option value="center">Centrato</option>
-                  <option value="left">Allineato a sinistra</option>
-                </select>
-              </label>
-
-              <div class="field" style="justify-content:center;gap:0.6rem">
+              <div class="field field-wide" style="justify-content:center;gap:0.6rem">
                 <label class="checkbox-inline">
                   <input id="cfg-show-bearing" type="checkbox" checked />
                   <span>Mostra logo cuscinetto</span>
-                </label>
-                <label class="checkbox-inline">
-                  <input id="cfg-show-pillars" type="checkbox" checked />
-                  <span>Mostra 3 pilastri in home</span>
                 </label>
               </div>
             </div>
           </div>
 
           <div class="design-card">
-            <h2>Testi Home &amp; Brand</h2>
+            <h2>Brand &amp; Testi</h2>
             <div class="meta-grid">
               <label class="field field-wide">
                 <span>Nome del sito</span>
@@ -349,28 +338,12 @@ const initialConfigJson = JSON.stringify(siteConfig);
                 <span>Sottotitolo header (EN)</span>
                 <input id="cfg-brand-sub-en" type="text" />
               </label>
-              <label class="field">
-                <span>Occhiello Hero (IT)</span>
-                <input id="cfg-kicker-it" type="text" />
-              </label>
-              <label class="field">
-                <span>Occhiello Hero (EN)</span>
-                <input id="cfg-kicker-en" type="text" />
-              </label>
               <label class="field field-wide">
-                <span>Titolo Hero (IT)</span>
-                <input id="cfg-title-it" type="text" />
-              </label>
-              <label class="field field-wide">
-                <span>Titolo Hero (EN)</span>
-                <input id="cfg-title-en" type="text" />
-              </label>
-              <label class="field field-wide">
-                <span>Descrizione Hero (IT)</span>
+                <span>Descrizione SEO Home (IT)</span>
                 <textarea id="cfg-lead-it" rows="2"></textarea>
               </label>
               <label class="field field-wide">
-                <span>Descrizione Hero (EN)</span>
+                <span>Descrizione SEO Home (EN)</span>
                 <textarea id="cfg-lead-en" rows="2"></textarea>
               </label>
               <label class="field">
@@ -402,6 +375,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
   import { marked } from 'marked';
   import katex from 'katex';
   import TurndownService from 'turndown';
+  import DOMPurify from 'dompurify';
 
   marked.setOptions({ gfm: true, breaks: false });
 
@@ -444,7 +418,13 @@ const initialConfigJson = JSON.stringify(siteConfig);
     filter: 'table',
     replacement: (_content, node) => {
       const rows = Array.from((node as HTMLElement).querySelectorAll('tr')).map((tr) =>
-        Array.from(tr.children).map((cell) => (cell.textContent || '').trim().replace(/\|/g, '\\|'))
+        Array.from(tr.children).map((cell) =>
+          turndown
+            .turndown((cell as HTMLElement).innerHTML || '')
+            .replace(/\r?\n/g, ' ')
+            .trim()
+            .replace(/\|/g, '\\|')
+        )
       );
       if (rows.length === 0) return '';
       const header = rows[0];
@@ -452,6 +432,17 @@ const initialConfigJson = JSON.stringify(siteConfig);
       const bodyRows = rows.slice(1);
       const formatRow = (cols: string[]) => `| ${cols.join(' | ')} |`;
       return `\n\n${[formatRow(header), formatRow(sep), ...bodyRows.map(formatRow)].join('\n')}\n\n`;
+    },
+  });
+
+  turndown.addRule('uploadedImg', {
+    filter: 'img',
+    replacement: (_content, node) => {
+      const el = node as HTMLImageElement;
+      const src = el.getAttribute('data-upload-url') || el.getAttribute('src') || '';
+      if (!src) return '';
+      const alt = (el.getAttribute('alt') || '').replace(/\]/g, '\\]');
+      return `![${alt}](${src})`;
     },
   });
 
@@ -520,9 +511,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
     body: string;
   }
 
-  let backendMode: 'cloudflare' | 'github-direct' = 'cloudflare';
   let currentAuthor = 'alessandro-capialbi';
-  let ghCreds: { token: string; repo: string; branch: string } | null = null;
   let articlesCache: ArticleRecord[] = [];
   let editingSlug: string | null = null;
   let editingSha: string | null = null;
@@ -558,81 +547,6 @@ const initialConfigJson = JSON.stringify(siteConfig);
       .slice(0, 90);
   }
 
-  function utf8ToBase64(text: string): string {
-    const bytes = new TextEncoder().encode(text);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i += 0x8000) {
-      binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-    }
-    return btoa(binary);
-  }
-
-  function base64ToUtf8(b64: string): string {
-    const binary = atob(b64.replace(/\s+/g, ''));
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    return new TextDecoder().decode(bytes);
-  }
-
-  function parseMarkdownFrontmatter(raw: string) {
-    const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
-    if (!m) return { frontmatter: {} as Record<string, unknown>, body: raw };
-    const fm: Record<string, unknown> = {};
-    for (const line of m[1].split(/\r?\n/)) {
-      const idx = line.indexOf(':');
-      if (idx <= 0) continue;
-      const k = line.slice(0, idx).trim();
-      const v = line.slice(idx + 1).trim();
-      if (v === 'true') fm[k] = true;
-      else if (v === 'false') fm[k] = false;
-      else if (v.startsWith('[') && v.endsWith(']')) {
-        try {
-          fm[k] = JSON.parse(v);
-        } catch {
-          fm[k] = [];
-        }
-      } else if (v.startsWith('"') && v.endsWith('"')) {
-        try {
-          fm[k] = JSON.parse(v);
-        } catch {
-          fm[k] = v.slice(1, -1);
-        }
-      } else {
-        fm[k] = v.replace(/^'|'$/g, '');
-      }
-    }
-    return { frontmatter: fm, body: m[2].replace(/^\r?\n/, '') };
-  }
-
-  function serializeMarkdown(data: {
-    title: string;
-    description: string;
-    pubDate: string;
-    author: string;
-    category: string;
-    tags: string[];
-    level: string;
-    draft: boolean;
-    body: string;
-  }) {
-    return [
-      '---',
-      'language: "it"',
-      `title: ${JSON.stringify(data.title)}`,
-      `description: ${JSON.stringify(data.description)}`,
-      `pubDate: ${data.pubDate}`,
-      `author: ${JSON.stringify(data.author)}`,
-      `category: ${JSON.stringify(data.category)}`,
-      `tags: ${JSON.stringify(data.tags)}`,
-      `level: ${JSON.stringify(data.level)}`,
-      `draft: ${data.draft ? 'true' : 'false'}`,
-      '---',
-      '',
-      data.body.trim(),
-      '',
-    ].join('\n');
-  }
-
   function createMathChipHtml(tex: string, displayMode: boolean): string {
     const cleanTex = tex.trim();
     const rendered = katex.renderToString(cleanTex, { displayMode, throwOnError: false });
@@ -647,10 +561,14 @@ const initialConfigJson = JSON.stringify(siteConfig);
     const raw = bodyInput.value || '';
     const mathTokens: string[] = [];
 
-    // Protegge blocchi di codice da sostituzioni LaTeX
+    // Protegge blocchi di codice e codice inline da sostituzioni LaTeX
     const codeTokens: string[] = [];
     let safe = raw.replace(/```[\s\S]*?```/g, (block) => {
       const id = codeTokens.push(block) - 1;
+      return `@@CODE_BLOCK_${id}@@`;
+    });
+    safe = safe.replace(/`[^`\n]+`/g, (inlineCode) => {
+      const id = codeTokens.push(inlineCode) - 1;
       return `@@CODE_BLOCK_${id}@@`;
     });
 
@@ -680,11 +598,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
     safe = safe.replace(/@@CODE_BLOCK_(\d+)@@/g, (_, idx) => codeTokens[Number(idx)] || '');
 
     let html = marked.parse(safe) as string;
-    html = html
-      .replace(/<(script|iframe|object|embed|style)[\s\S]*?<\/\1>/gi, '')
-      .replace(/<(script|iframe|object|embed)\b[^>]*\/?>/gi, '')
-      .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-      .replace(/javascript:/gi, '');
+    html = DOMPurify.sanitize(html, { ADD_ATTR: ['data-tex', 'contenteditable', 'title'] });
     html = html.replace(/@@MATH_(\d+)@@/g, (_, idx) => mathTokens[Number(idx)] || '');
 
     visualEditorEl.innerHTML = html || '';
@@ -790,80 +704,18 @@ const initialConfigJson = JSON.stringify(siteConfig);
       .replace(/"/g, '&quot;');
   }
 
-  // --- API Layer (Cloudflare backend vs GitHub Direct) ---
-
-  async function ghApi(path: string, init: RequestInit = {}) {
-    if (!ghCreds) throw new Error('Token GitHub non configurato');
-    const url = `https://api.github.com/repos/${ghCreds.repo}${path}`;
-    return fetch(url, {
-      ...init,
-      headers: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${ghCreds.token}`,
-        'X-GitHub-Api-Version': '2022-11-28',
-        ...(init.headers || {}),
-      },
-    });
-  }
+  // --- API Layer (Cloudflare Pages Functions) ---
 
   async function fetchArticles() {
     articlesListEl.innerHTML = '<div class="muted small">Caricamento articoli...</div>';
-    if (backendMode === 'cloudflare') {
-      const res = await fetch(`${API_BASE}/articles`);
-      if (res.status === 401) {
-        showLoginScreen();
-        return;
-      }
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Errore caricamento articoli');
-      articlesCache = data.articles || [];
-    } else {
-      const branch = ghCreds!.branch;
-      const [itRes, enRes] = await Promise.all([
-        ghApi(`/contents/src/content/articles?ref=${encodeURIComponent(branch)}`),
-        ghApi(`/contents/src/content/articles/en?ref=${encodeURIComponent(branch)}`),
-      ]);
-      if (!itRes.ok) throw new Error('Impossibile leggere il repo GitHub. Controlla token e permessi.');
-      const itList = await itRes.json();
-      const enList = enRes.ok ? await enRes.json() : [];
-      const enSlugs = new Set(
-        (Array.isArray(enList) ? enList : [])
-          .filter((f: any) => f.type === 'file' && /\.mdx?$/.test(f.name))
-          .map((f: any) => f.name.replace(/\.mdx?$/, ''))
-      );
-      const mdFiles = (Array.isArray(itList) ? itList : []).filter(
-        (f: any) => f.type === 'file' && /\.mdx?$/.test(f.name)
-      );
-      const loaded = await Promise.all(
-        mdFiles.map(async (f: any) => {
-          const r = await ghApi(`/contents/${f.path}?ref=${encodeURIComponent(branch)}`);
-          if (!r.ok) return null;
-          const json = await r.json();
-          const { frontmatter, body } = parseMarkdownFrontmatter(base64ToUtf8(json.content || ''));
-          const slug = f.name.replace(/\.mdx?$/, '');
-          return {
-            slug,
-            path: f.path,
-            sha: json.sha,
-            hasEnglish: enSlugs.has(slug),
-            frontmatter: {
-              title: String(frontmatter.title || slug),
-              description: String(frontmatter.description || ''),
-              pubDate: String(frontmatter.pubDate || '').slice(0, 10),
-              author: String(frontmatter.author || 'alessandro-capialbi'),
-              category: String(frontmatter.category || 'Meccatronica & Hybrid'),
-              tags: Array.isArray(frontmatter.tags) ? (frontmatter.tags as string[]) : [],
-              level: String(frontmatter.level || 'Intermedio'),
-              draft: Boolean(frontmatter.draft),
-            },
-            body,
-          } satisfies ArticleRecord;
-        })
-      );
-      articlesCache = (loaded.filter(Boolean) as ArticleRecord[]).sort((a, b) =>
-        b.frontmatter.pubDate.localeCompare(a.frontmatter.pubDate)
-      );
+    const res = await fetch(`${API_BASE}/articles`);
+    if (res.status === 401) {
+      showLoginScreen();
+      return;
     }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Errore caricamento articoli');
+    articlesCache = data.articles || [];
     renderArticlesList();
   }
 
@@ -903,41 +755,15 @@ const initialConfigJson = JSON.stringify(siteConfig);
     hideBanner();
 
     try {
-      if (backendMode === 'cloudflare') {
-        const res = await fetch(`${API_BASE}/articles`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Errore salvataggio');
-        editingSlug = data.slug;
-        editingSha = data.sha;
-      } else {
-        const path = `src/content/articles/${slug}.md`;
-        let sha = editingSha;
-        if (!sha) {
-          const check = await ghApi(`/contents/${path}?ref=${encodeURIComponent(ghCreds!.branch)}`);
-          if (check.ok) sha = (await check.json()).sha;
-        }
-        const md = serializeMarkdown(payload);
-        const res = await ghApi(`/contents/${path}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: sha
-              ? `aggiorna articolo: ${slug} (via admin)`
-              : `pubblica articolo: ${slug} (via admin)`,
-            content: utf8ToBase64(md),
-            branch: ghCreds!.branch,
-            ...(sha ? { sha } : {}),
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Errore commit su GitHub');
-        editingSlug = slug;
-        editingSha = data?.content?.sha || null;
-      }
+      const res = await fetch(`${API_BASE}/articles`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Errore salvataggio');
+      editingSlug = data.slug;
+      editingSha = data.sha;
 
       slugInput.disabled = true;
       publishBtn.textContent = 'Salva modifiche';
@@ -964,40 +790,13 @@ const initialConfigJson = JSON.stringify(siteConfig);
 
     deleteBtn.disabled = true;
     try {
-      if (backendMode === 'cloudflare') {
-        const res = await fetch(`${API_BASE}/articles`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slug: editingSlug }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Errore eliminazione');
-      } else {
-        const itPath = `src/content/articles/${editingSlug}.md`;
-        const enPath = `src/content/articles/en/${editingSlug}.md`;
-        await ghApi(`/contents/${itPath}`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: `elimina articolo: ${editingSlug} (via admin)`,
-            sha: editingSha,
-            branch: ghCreds!.branch,
-          }),
-        });
-        const enCheck = await ghApi(`/contents/${enPath}?ref=${encodeURIComponent(ghCreds!.branch)}`);
-        if (enCheck.ok) {
-          const enJson = await enCheck.json();
-          await ghApi(`/contents/${enPath}`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: `elimina traduzione EN: ${editingSlug} (via admin)`,
-              sha: enJson.sha,
-              branch: ghCreds!.branch,
-            }),
-          });
-        }
-      }
+      const res = await fetch(`${API_BASE}/articles`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: editingSlug }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Errore eliminazione');
       await fetchArticles();
       resetFormForNew();
       showBanner('Articolo eliminato correttamente.');
@@ -1017,37 +816,23 @@ const initialConfigJson = JSON.stringify(siteConfig);
       showBanner(`Caricamento immagine "${file.name}" in corso...`);
 
       try {
-        let imageUrl = '';
-        if (backendMode === 'cloudflare') {
-          const res = await fetch(`${API_BASE}/upload`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: file.name, contentBase64: base64, slug }),
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Errore upload immagine');
-          imageUrl = data.url;
-        } else {
-          const cleanName = file.name.toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
-          const stamp = Date.now();
-          const repoPath = `public/uploads/${slug}/${stamp}-${cleanName}`;
-          const res = await ghApi(`/contents/${repoPath}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: `carica immagine ${cleanName} (via admin)`,
-              content: base64,
-              branch: ghCreds!.branch,
-            }),
-          });
-          if (!res.ok) throw new Error('Errore upload su GitHub');
-          imageUrl = `/uploads/${slug}/${stamp}-${cleanName}`;
-        }
+        const res = await fetch(`${API_BASE}/upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, contentBase64: base64, slug }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Errore upload immagine');
+        const imageUrl = String(data.url || '');
 
         if (editorMode === 'visual') {
           visualEditorEl.focus();
           const alt = escapeHtml(file.name.replace(/\.[^.]+$/, ''));
-          document.execCommand('insertHTML', false, `<p><img src="${imageUrl}" alt="${alt}" /></p><p><br></p>`);
+          document.execCommand(
+            'insertHTML',
+            false,
+            `<p><img src="${escapeHtml(dataUrl)}" data-upload-url="${escapeHtml(imageUrl)}" alt="${alt}" /></p><p><br></p>`
+          );
           syncVisualToMarkdown();
         } else {
           insertAtCursor(`\n![${file.name.replace(/\.[^.]+$/, '')}](${imageUrl})\n`);
@@ -1092,7 +877,6 @@ const initialConfigJson = JSON.stringify(siteConfig);
   }
 
   async function initAdmin() {
-    backendMode = 'cloudflare';
     try {
       const res = await fetch(`${API_BASE}/session`);
       const contentType = res.headers.get('content-type') || '';
@@ -1182,7 +966,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
           document.execCommand(
             'insertHTML',
             false,
-            `<p><a href="${data.url}">3d:${escapeHtml(label)}</a></p><p><br></p>`
+            `<p><a href="${escapeHtml(String(data.url || ''))}">3d:${escapeHtml(label)}</a></p><p><br></p>`
           );
           syncVisualToMarkdown();
         } else {
@@ -1327,6 +1111,22 @@ const initialConfigJson = JSON.stringify(siteConfig);
     showBanner('Testo precedente ripristinato.');
   });
 
+  // Sanitizza l'HTML incollato nell'editor visuale (rimuove stili inline, classi e script)
+  visualEditorEl.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const htmlData = e.clipboardData?.getData('text/html');
+    const textData = e.clipboardData?.getData('text/plain') || '';
+    if (htmlData) {
+      const clean = DOMPurify.sanitize(htmlData, {
+        FORBID_TAGS: ['style', 'script', 'iframe', 'object', 'embed'],
+        FORBID_ATTR: ['style', 'class', 'id'],
+      });
+      document.execCommand('insertHTML', false, clean);
+    } else if (textData) {
+      document.execCommand('insertText', false, textData);
+    }
+  });
+
   // Click su una formula KaTeX in modalità visuale per modificarla
   visualEditorEl.addEventListener('click', (e) => {
     const chip = (e.target as HTMLElement).closest('.math-chip, .math-block-chip') as HTMLElement | null;
@@ -1346,12 +1146,16 @@ const initialConfigJson = JSON.stringify(siteConfig);
 
   // Formatting toolbar (funziona sia in Visuale stile Word sia in Markdown)
   document.querySelectorAll('.tb-btn[data-insert]').forEach((btn) => {
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
     btn.addEventListener('click', () => {
       const type = (btn as HTMLElement).dataset.insert;
 
       if (editorMode === 'visual') {
         visualEditorEl.focus();
         switch (type) {
+          case 'p':
+            document.execCommand('formatBlock', false, 'p');
+            break;
           case 'h2':
             document.execCommand('formatBlock', false, 'h2');
             break;
@@ -1372,7 +1176,14 @@ const initialConfigJson = JSON.stringify(siteConfig);
             break;
           case 'link': {
             const url = prompt('Inserisci URL del link:', 'https://');
-            if (url) document.execCommand('createLink', false, url);
+            if (url) {
+              const trimmed = url.trim();
+              if (/^(https?:\/\/|mailto:|\/)/i.test(trimmed)) {
+                document.execCommand('createLink', false, trimmed);
+              } else {
+                showBanner('URL non valido. Usa https://, http://, mailto: oppure un percorso relativo (/).', true);
+              }
+            }
             break;
           }
           case 'code':
@@ -1408,6 +1219,9 @@ const initialConfigJson = JSON.stringify(siteConfig);
       }
 
       switch (type) {
+        case 'p':
+          insertAtCursor('\n\n');
+          break;
         case 'h2':
           insertAtCursor('\n## Titolo sezione\n');
           break;
@@ -1474,7 +1288,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
   const PRESET_DEFAULTS: Record<string, { accentLight: string; accentDark: string }> = {
     alabaster: { accentLight: '#0071e3', accentDark: '#2997ff' },
     ceramic: { accentLight: '#c85a17', accentDark: '#f0883e' },
-    graphite: { accentLight: '#1d1d1f', accentDark: '#e5e5ea' },
+    graphite: { accentLight: '#1d1d1f', accentDark: '#0a84ff' },
     obsidian: { accentLight: '#2997ff', accentDark: '#2997ff' },
   };
 
@@ -1491,16 +1305,10 @@ const initialConfigJson = JSON.stringify(siteConfig);
     proseFont: document.getElementById('cfg-prose-font') as HTMLSelectElement,
     radius: document.getElementById('cfg-radius') as HTMLSelectElement,
     spacing: document.getElementById('cfg-spacing') as HTMLSelectElement,
-    heroAlign: document.getElementById('cfg-hero-align') as HTMLSelectElement,
     showBearing: document.getElementById('cfg-show-bearing') as HTMLInputElement,
-    showPillars: document.getElementById('cfg-show-pillars') as HTMLInputElement,
     brandName: document.getElementById('cfg-brand-name') as HTMLInputElement,
     brandSubIt: document.getElementById('cfg-brand-sub-it') as HTMLInputElement,
     brandSubEn: document.getElementById('cfg-brand-sub-en') as HTMLInputElement,
-    kickerIt: document.getElementById('cfg-kicker-it') as HTMLInputElement,
-    kickerEn: document.getElementById('cfg-kicker-en') as HTMLInputElement,
-    titleIt: document.getElementById('cfg-title-it') as HTMLInputElement,
-    titleEn: document.getElementById('cfg-title-en') as HTMLInputElement,
     leadIt: document.getElementById('cfg-lead-it') as HTMLTextAreaElement,
     leadEn: document.getElementById('cfg-lead-en') as HTMLTextAreaElement,
     footerIt: document.getElementById('cfg-footer-it') as HTMLInputElement,
@@ -1549,19 +1357,13 @@ const initialConfigJson = JSON.stringify(siteConfig);
     cfgEl.proseFont.value = cfg.theme.proseFont;
     cfgEl.radius.value = cfg.theme.radius;
     cfgEl.spacing.value = cfg.theme.spacing;
-    cfgEl.heroAlign.value = cfg.theme.heroAlign;
     cfgEl.showBearing.checked = Boolean(cfg.theme.showBearingMark);
-    cfgEl.showPillars.checked = Boolean(cfg.hero.showPillars);
 
     cfgEl.brandName.value = cfg.brand.name || '';
     cfgEl.brandSubIt.value = cfg.brand.subtitleIt || '';
     cfgEl.brandSubEn.value = cfg.brand.subtitleEn || '';
-    cfgEl.kickerIt.value = cfg.hero.kickerIt || '';
-    cfgEl.kickerEn.value = cfg.hero.kickerEn || '';
-    cfgEl.titleIt.value = cfg.hero.titleIt || '';
-    cfgEl.titleEn.value = cfg.hero.titleEn || '';
-    cfgEl.leadIt.value = cfg.hero.leadIt || '';
-    cfgEl.leadEn.value = cfg.hero.leadEn || '';
+    cfgEl.leadIt.value = cfg.hero?.leadIt || '';
+    cfgEl.leadEn.value = cfg.hero?.leadEn || '';
     cfgEl.footerIt.value = cfg.footer.taglineIt || '';
     cfgEl.footerEn.value = cfg.footer.taglineEn || '';
     applyLiveDesignPreview(cfg);
@@ -1584,18 +1386,12 @@ const initialConfigJson = JSON.stringify(siteConfig);
         proseFont: cfgEl.proseFont.value,
         radius: cfgEl.radius.value,
         spacing: cfgEl.spacing.value,
-        heroAlign: cfgEl.heroAlign.value,
         showBearingMark: cfgEl.showBearing.checked,
       },
       hero: {
         ...currentSiteConfig.hero,
-        kickerIt: cfgEl.kickerIt.value.trim(),
-        kickerEn: cfgEl.kickerEn.value.trim(),
-        titleIt: cfgEl.titleIt.value.trim(),
-        titleEn: cfgEl.titleEn.value.trim(),
         leadIt: cfgEl.leadIt.value.trim(),
         leadEn: cfgEl.leadEn.value.trim(),
-        showPillars: cfgEl.showPillars.checked,
       },
       footer: {
         ...currentSiteConfig.footer,
@@ -1610,22 +1406,12 @@ const initialConfigJson = JSON.stringify(siteConfig);
   async function loadSiteConfigFromRepo() {
     if (designLoadedFromRepo) return;
     try {
-      if (backendMode === 'cloudflare') {
-        const res = await fetch(`${API_BASE}/site-config`);
-        if (res.ok) {
-          const data = await res.json();
-          currentSiteConfig = data.config;
-          siteConfigSha = data.sha;
-          designLoadedFromRepo = true;
-        }
-      } else if (ghCreds) {
-        const res = await ghApi(`/contents/src/data/site-config.json?ref=${encodeURIComponent(ghCreds.branch)}`);
-        if (res.ok) {
-          const file = await res.json();
-          currentSiteConfig = JSON.parse(base64ToUtf8(file.content || '{}'));
-          siteConfigSha = file.sha;
-          designLoadedFromRepo = true;
-        }
+      const res = await fetch(`${API_BASE}/site-config`);
+      if (res.ok) {
+        const data = await res.json();
+        currentSiteConfig = data.config;
+        siteConfigSha = data.sha;
+        designLoadedFromRepo = true;
       }
     } catch {
       // Usa initialConfig come fallback
@@ -1640,36 +1426,14 @@ const initialConfigJson = JSON.stringify(siteConfig);
     designBanner.hidden = true;
 
     try {
-      if (backendMode === 'cloudflare') {
-        const res = await fetch(`${API_BASE}/site-config`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ config: cfg, sha: siteConfigSha || undefined }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Errore salvataggio design');
-        siteConfigSha = data.sha || siteConfigSha;
-      } else {
-        const path = 'src/data/site-config.json';
-        let sha = siteConfigSha;
-        if (!sha) {
-          const check = await ghApi(`/contents/${path}?ref=${encodeURIComponent(ghCreds!.branch)}`);
-          if (check.ok) sha = (await check.json()).sha;
-        }
-        const res = await ghApi(`/contents/${path}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: 'style: aggiorna design e testi sito (via admin)',
-            content: utf8ToBase64(`${JSON.stringify(cfg, null, 2)}\n`),
-            branch: ghCreds!.branch,
-            ...(sha ? { sha } : {}),
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Errore commit config su GitHub');
-        siteConfigSha = data?.content?.sha || siteConfigSha;
-      }
+      const res = await fetch(`${API_BASE}/site-config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: cfg, sha: siteConfigSha || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Errore salvataggio design');
+      siteConfigSha = data.sha || siteConfigSha;
       showDesignBanner('Design e testi salvati su GitHub! Il sito si aggiornerà entro 1-2 minuti.');
     } catch (err: any) {
       showDesignBanner(err?.message || 'Errore durante il salvataggio.', true);
@@ -1723,7 +1487,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
     }
   });
 
-  [cfgEl.headingFont, cfgEl.proseFont, cfgEl.radius, cfgEl.spacing, cfgEl.heroAlign, cfgEl.showBearing, cfgEl.showPillars].forEach(
+  [cfgEl.headingFont, cfgEl.proseFont, cfgEl.radius, cfgEl.spacing, cfgEl.showBearing].forEach(
     (el) => el.addEventListener('change', readDesignFormIntoConfig)
   );
 
@@ -1864,7 +1628,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
 
   .btn-primary {
     background: var(--accent);
-    color: #fff;
+    color: var(--btn-primary-text, #fff);
   }
 
   .btn-secondary {

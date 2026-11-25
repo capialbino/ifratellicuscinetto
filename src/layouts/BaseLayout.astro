@@ -21,7 +21,9 @@ const {
   languageSwitchHref = locale === 'it' ? '/en/' : '/',
 } = Astro.props;
 
-const canonicalURL = new URL(Astro.url.pathname, Astro.site ?? 'https://ifratellicuscinetto.com');
+const siteOrigin = Astro.site ?? 'https://ifratellicuscinetto.com';
+const canonicalURL = new URL(Astro.url.pathname, siteOrigin);
+const alternateURL = new URL(withBase(languageSwitchHref), siteOrigin);
 const themeStyleVars = buildThemeStyleVars(siteConfig);
 ---
 
@@ -32,20 +34,21 @@ const themeStyleVars = buildThemeStyleVars(siteConfig);
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href={withBase('/favicon.svg')} />
     <link rel="canonical" href={canonicalURL} />
+    <link rel="alternate" hreflang={locale} href={canonicalURL} />
+    <link rel="alternate" hreflang={locale === 'it' ? 'en' : 'it'} href={alternateURL} />
     <link rel="alternate" type="application/rss+xml" title={`${siteConfig.brand.name} RSS`} href={withBase('/rss.xml')} />
     <meta name="description" content={description} />
     <title>{title}</title>
 
     <script is:inline>
       (() => {
-        const stored = localStorage.getItem('theme');
+        let stored = null;
+        try {
+          stored = localStorage.getItem('theme');
+        } catch {}
         const preset = document.documentElement.dataset.preset;
-        if (preset === 'obsidian') {
-          document.documentElement.classList.add('dark');
-          return;
-        }
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        if (stored === 'dark' || (!stored && prefersDark)) {
+        if (stored === 'dark' || (!stored && (preset === 'obsidian' || prefersDark))) {
           document.documentElement.classList.add('dark');
         }
       })();
@@ -112,7 +115,7 @@ const themeStyleVars = buildThemeStyleVars(siteConfig);
         </div>
         <div class="footer-links">
           <a href={withBase(locale === 'it' ? '/' : '/en/')}>{locale === 'it' ? 'Articoli' : 'Articles'}</a>
-          <a href={withBase(locale === 'it' ? '/chi-siamo' : '/en/about')}>Team</a>
+          <a href={withBase(locale === 'it' ? '/chi-siamo' : '/en/about')}>{locale === 'it' ? 'Chi siamo' : 'About'}</a>
           <a href={withBase(locale === 'it' ? '/privacy' : '/en/privacy')}>{locale === 'it' ? 'Privacy & Cookie' : 'Privacy & Cookies'}</a>
           <a href={withBase('/rss.xml')}>RSS</a>
           <a href={withBase('/admin')}>Admin</a>
@@ -126,7 +129,9 @@ const themeStyleVars = buildThemeStyleVars(siteConfig);
         if (!btn) return;
         btn.addEventListener('click', () => {
           const isDark = document.documentElement.classList.toggle('dark');
-          localStorage.setItem('theme', isDark ? 'dark' : 'light');
+          try {
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+          } catch {}
         });
       })();
     </script>

@@ -12,16 +12,43 @@ const CATEGORY_COLORS = {
   'Meccatronica & Hybrid': '#0f766e',
 };
 
+function stripInlineComment(val) {
+  let inSingle = false;
+  let inDouble = false;
+  for (let i = 0; i < val.length; i++) {
+    const ch = val[i];
+    if (ch === '\\' && inDouble) {
+      i++;
+      continue;
+    }
+    if (ch === "'" && !inDouble) {
+      inSingle = !inSingle;
+    } else if (ch === '"' && !inSingle) {
+      inDouble = !inDouble;
+    } else if (ch === '#' && !inSingle && !inDouble) {
+      if (i === 0 || /\s/.test(val[i - 1])) {
+        return val.slice(0, i).trim();
+      }
+    }
+  }
+  return val.trim();
+}
+
 function parseFrontmatter(raw) {
   const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!match) return { frontmatter: {}, body: raw };
   const fm = {};
   for (const line of match[1].split(/\r?\n/)) {
+    if (/^\s*#/.test(line) || !line.trim()) continue;
     const idx = line.indexOf(':');
     if (idx <= 0) continue;
     const key = line.slice(0, idx).trim();
-    const val = line.slice(idx + 1).trim();
-    if (val.startsWith('"') && val.endsWith('"')) {
+    const val = stripInlineComment(line.slice(idx + 1));
+    if (val === 'true') {
+      fm[key] = true;
+    } else if (val === 'false') {
+      fm[key] = false;
+    } else if (val.startsWith('"') && val.endsWith('"')) {
       try {
         fm[key] = JSON.parse(val);
       } catch {
@@ -40,16 +67,29 @@ function sanitizeSvg(rawSvg) {
   if (!match) return null;
   svg = match[0];
 
-  // Rimozione severa di qualsiasi tag/attributo eseguibile o risorsa esterna
-  svg = svg
-    .replace(/<(script|foreignObject|iframe|object|embed|style|image)[\s\S]*?<\/\1>/gi, '')
-    .replace(/<(script|foreignObject|iframe|object|embed|image)\b[^>]*\/?>/gi, '')
-    .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/(?:xlink:)?href\s*=\s*(?:"[^"]*"|'[^']*')/gi, (attr) =>
-      /#[a-zA-Z0-9_-]+/.test(attr) ? attr : ''
-    )
-    .replace(/javascript:/gi, '')
-    .replace(/https?:\/\/[^\s"'<>]+/gi, '');
+  const forbiddenTags =
+    'script|foreignObject|iframe|object|embed|style|image|animate|set|use|a';
+  const pairedTagRe = new RegExp(`<(${forbiddenTags})\\b[\\s\\S]*?<\\/\\1\\s*>`, 'gi');
+  const singleTagRe = new RegExp(`<\\/?(${forbiddenTags})\\b[^>]*\\/?>`, 'gi');
+
+  // Rimozione severa e iterativa fino a convergenza di qualsiasi tag/attributo eseguibile o risorsa esterna
+  let prev;
+  do {
+    prev = svg;
+    svg = svg
+      .replace(pairedTagRe, '')
+      .replace(singleTagRe, '')
+      .replace(/[\s/]on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, ' ')
+      .replace(
+        /[\s/](?:xlink:)?href\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi,
+        (full, dq, sq, uq) => {
+          const val = (dq ?? sq ?? uq ?? '').trim();
+          return /^#[a-zA-Z0-9_-]+$/.test(val) ? full : ' ';
+        }
+      )
+      .replace(/javascript:/gi, '')
+      .replace(/https?:\/\/(?!www\.w3\.org\/2000\/svg(?=["'\s>]))[^\s"'<>]+/gi, '');
+  } while (svg !== prev);
 
   if (!/viewBox=/i.test(svg)) {
     svg = svg.replace(/<svg/i, '<svg viewBox="0 0 640 360"');
@@ -119,6 +159,11 @@ async function main() {
 
     const raw = await fs.readFile(itPath, 'utf8');
     const { frontmatter, body } = parseFrontmatter(raw);
+
+    if (frontmatter.draft === true) {
+      console.log(`[skip] ${slug} (bozza, nessuna cover generata)`);
+      continue;
+    }
 
     if (frontmatter.coverImage) {
       console.log(`[skip] ${slug} (usa copertina manuale)`);

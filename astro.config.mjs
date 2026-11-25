@@ -3,6 +3,7 @@ import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 
 const [githubOwner, githubRepository] = (process.env.GITHUB_REPOSITORY ?? '').split('/');
 const isGitHubPagesBuild =
@@ -10,6 +11,103 @@ const isGitHubPagesBuild =
 const isGitHubUserSite = githubRepository === `${githubOwner}.github.io`;
 const base =
   isGitHubPagesBuild && !isGitHubUserSite ? `/${githubRepository}` : '/';
+const isCloudflarePreview =
+  Boolean(process.env.CF_PAGES_BRANCH) && process.env.CF_PAGES_BRANCH !== 'main';
+
+const katexMathTags = [
+  'math',
+  'semantics',
+  'mrow',
+  'mi',
+  'mo',
+  'mn',
+  'msup',
+  'msub',
+  'msubsup',
+  'mfrac',
+  'msqrt',
+  'mroot',
+  'mtable',
+  'mtr',
+  'mtd',
+  'mtext',
+  'mspace',
+  'mover',
+  'munder',
+  'munderover',
+  'annotation',
+];
+
+const katexSvgTags = ['svg', 'path', 'line', 'rect', 'g'];
+
+const sanitizeSchema = {
+  ...defaultSchema,
+  tagNames: [
+    ...(defaultSchema.tagNames || []),
+    ...katexMathTags,
+    ...katexSvgTags,
+    'span',
+  ],
+  attributes: {
+    ...(defaultSchema.attributes || {}),
+    '*': [
+      ...(defaultSchema.attributes?.['*'] || []),
+      'className',
+      'ariaHidden',
+      'aria-hidden',
+    ],
+    div: [
+      ...(defaultSchema.attributes?.div || []),
+      'className',
+      'dataSrc',
+      'dataLabel',
+      'data-src',
+      'data-label',
+    ],
+    span: [
+      ...(defaultSchema.attributes?.span || []),
+      'className',
+      'style',
+      'ariaHidden',
+      'aria-hidden',
+    ],
+    pre: [
+      ...(defaultSchema.attributes?.pre || []),
+      'className',
+      'style',
+      'tabIndex',
+      'dataLanguage',
+      'data-language',
+    ],
+    code: [
+      ...(defaultSchema.attributes?.code || []),
+      'className',
+      'style',
+    ],
+    math: ['xmlns', 'display', 'className', 'style', 'ariaHidden', 'aria-hidden'],
+    annotation: ['encoding', 'className'],
+    svg: [
+      'xmlns',
+      'viewBox',
+      'width',
+      'height',
+      'preserveAspectRatio',
+      'className',
+      'style',
+      'ariaHidden',
+      'aria-hidden',
+    ],
+    path: ['d', 'className', 'style'],
+    line: ['x1', 'y1', 'x2', 'y2', 'className', 'style'],
+    rect: ['x', 'y', 'width', 'height', 'className', 'style'],
+    g: ['className', 'style'],
+    ...Object.fromEntries(
+      katexMathTags
+        .filter((tag) => tag !== 'math' && tag !== 'annotation')
+        .map((tag) => [tag, ['className', 'style', 'ariaHidden', 'aria-hidden']])
+    ),
+  },
+};
 
 /** Prefixes `/uploads/...` URLs with Astro `base` and upgrades `.glb` links into interactive 3D viewer containers. */
 function rehypePrefixUploadsBase() {
@@ -54,7 +152,9 @@ function rehypePrefixUploadsBase() {
 export default defineConfig({
   site: isGitHubPagesBuild
     ? `https://${githubOwner}.github.io`
-    : process.env.CF_PAGES_URL || 'https://ifratellicuscinetto.com',
+    : isCloudflarePreview && process.env.CF_PAGES_URL
+      ? process.env.CF_PAGES_URL
+      : 'https://ifratellicuscinetto.com',
   base,
   integrations: [
     mdx(),
@@ -64,12 +164,16 @@ export default defineConfig({
   ],
   vite: {
     server: {
-      allowedHosts: ['.trycloudflare.com'],
+      allowedHosts: process.env.ALLOW_CLOUDFLARE_TUNNEL === 'true' ? ['.trycloudflare.com'] : [],
     },
   },
   markdown: {
     remarkPlugins: [remarkMath],
-    rehypePlugins: [rehypeKatex, rehypePrefixUploadsBase],
+    rehypePlugins: [
+      rehypeKatex,
+      rehypePrefixUploadsBase,
+      [rehypeSanitize, sanitizeSchema],
+    ],
     shikiConfig: {
       themes: {
         light: 'github-light',
