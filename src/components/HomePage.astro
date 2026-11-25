@@ -3,7 +3,8 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ArticleCard from '../components/ArticleCard.astro';
 import { getAuthor } from '../data/authors';
-import type { Locale } from '../utils/articles';
+import { CATEGORY_LABELS, CATEGORY_META, estimateReadingTime, formatDate, LEVEL_LABELS, type Locale } from '../utils/articles';
+import { withBase } from '../utils/paths';
 import { siteConfig } from '../utils/site-config';
 
 interface Props {
@@ -15,44 +16,83 @@ const allArticles = (await getCollection('articles', ({ data }) => !data.draft))
   (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
 );
 const articles = allArticles.filter((article) => article.data.language === locale);
+const [featuredArticle, ...otherArticles] = articles;
+const featuredAuthor = featuredArticle ? getAuthor(featuredArticle.data.author, locale) : null;
+const featuredCat = featuredArticle ? CATEGORY_META[featuredArticle.data.category] : null;
+const featuredReadTime = featuredArticle ? estimateReadingTime(featuredArticle.body) : 1;
+
 const languageSwitchHref = locale === 'it' ? '/en/' : '/';
 const isCentered = siteConfig.theme.heroAlign === 'center';
 ---
 
 <BaseLayout
   title={locale === 'it'
-    ? `${siteConfig.brand.name} — Ingegneria Meccanica, AI e Divulgazione Tecnica`
-    : `${siteConfig.brand.name} — Mechanical Engineering, AI and Technical Writing`}
+    ? `${siteConfig.brand.name} — ${siteConfig.brand.subtitleIt}`
+    : `${siteConfig.brand.name} — ${siteConfig.brand.subtitleEn}`}
   description={locale === 'it' ? siteConfig.hero.leadIt : siteConfig.hero.leadEn}
   activeNav="articoli"
   locale={locale}
   languageSwitchHref={languageSwitchHref}
 >
-  <section class:list={['hero engineering-grid', { 'hero-centered': isCentered }]}>
-    <div class="container hero-inner">
-      <p class="hero-kicker">
-        {locale === 'it' ? siteConfig.hero.kickerIt : siteConfig.hero.kickerEn}
-      </p>
-      <h1 class="hero-title">
+  <!-- Editorial Masthead (compatto, niente stile landing commerciale) -->
+  <section class:list={['masthead', { 'masthead-centered': isCentered }]}>
+    <div class="container masthead-inner">
+      <h1 class="masthead-title">
         {locale === 'it' ? siteConfig.hero.titleIt : siteConfig.hero.titleEn}
       </h1>
-      <p class="hero-lead">
+      <p class="masthead-lead">
         {locale === 'it' ? siteConfig.hero.leadIt : siteConfig.hero.leadEn}
       </p>
-
-      {siteConfig.hero.showPillars && siteConfig.hero.pillars.length > 0 && (
-        <div class="hero-pillars">
-          {siteConfig.hero.pillars.map((pillar) => (
-            <div class="pillar">
-              <span class="pillar-code">{locale === 'it' ? pillar.codeIt : pillar.codeEn}</span>
-              <span class="pillar-text">{locale === 'it' ? pillar.textIt : pillar.textEn}</span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   </section>
 
+  <!-- Articolo in evidenza subito visibile above the fold -->
+  {featuredArticle && featuredAuthor && featuredCat && (
+    <section id="featured-section" class="container featured-section" aria-label={locale === 'it' ? 'Ultimo articolo' : 'Latest article'}>
+      <a
+        href={withBase(locale === 'it' ? `/articoli/${featuredArticle.id}` : `/en/articles/${featuredArticle.id.split('/').at(-1)}`)}
+        class="featured-card"
+      >
+        <div class="featured-top">
+          <span class="featured-label">{locale === 'it' ? 'Ultimo articolo' : 'Latest'}</span>
+          <span class="meta-sep">·</span>
+          <span class={`cat-eyebrow ${featuredCat.badgeClass}`}>
+            <span class="cat-dot"></span>
+            {CATEGORY_LABELS[locale][featuredArticle.data.category]}
+          </span>
+          <span class="meta-sep">·</span>
+          <span class="featured-level">{LEVEL_LABELS[locale][featuredArticle.data.level]}</span>
+        </div>
+
+        <h2 class="featured-title">{featuredArticle.data.title}</h2>
+        <p class="featured-desc">{featuredArticle.data.description}</p>
+
+        <div class="featured-footer">
+          <div class="author-mini">
+            <span class="avatar-dot" style={`background:${featuredAuthor.accentColor}`}>
+              {featuredAuthor.initials}
+            </span>
+            <div>
+              <div class="author-name">{featuredAuthor.name}</div>
+              <div class="featured-meta">
+                <time datetime={featuredArticle.data.pubDate.toISOString()}>
+                  {formatDate(featuredArticle.data.pubDate, locale)}
+                </time>
+                <span>·</span>
+                <span>{featuredReadTime} {locale === 'it' ? 'min di lettura' : 'min read'}</span>
+              </div>
+            </div>
+          </div>
+
+          <span class="read-cta">
+            {locale === 'it' ? 'Leggi l’articolo →' : 'Read article →'}
+          </span>
+        </div>
+      </a>
+    </section>
+  )}
+
+  <!-- Archivio e filtri -->
   <section class="container catalog-section" aria-label={locale === 'it' ? 'Archivio articoli' : 'Article archive'}>
     <div class="filter-bar">
       <div class="category-pills" role="tablist" aria-label={locale === 'it' ? 'Filtra per area' : 'Filter by topic'}>
@@ -67,16 +107,14 @@ const isCentered = siteConfig.theme.heroAlign === 'center';
           <option value="all">{locale === 'it' ? 'Tutti gli autori' : 'All authors'}</option>
           {(['federico-pappafava', 'alessandro-rossi', 'alessandro-capialbi'] as const).map((id) => {
             const a = getAuthor(id, locale);
-            return (
-              <option value={a.id}>{a.name}</option>
-            );
+            return <option value={a.id}>{a.name}</option>;
           })}
         </select>
 
         <input
           id="search-input"
           type="search"
-          placeholder={locale === 'it' ? 'Cerca...' : 'Search...'}
+          placeholder={locale === 'it' ? 'Cerca un argomento...' : 'Search a topic...'}
           aria-label={locale === 'it' ? 'Cerca articoli' : 'Search articles'}
           class="control-search"
         />
@@ -84,8 +122,10 @@ const isCentered = siteConfig.theme.heroAlign === 'center';
     </div>
 
     <div id="articles-grid" class="articles-grid">
-      {articles.map((article) => (
-        <ArticleCard article={article} locale={locale} />
+      {articles.map((article, idx) => (
+        <div class:list={['grid-slot', { 'is-featured-dup': idx === 0 }]}>
+          <ArticleCard article={article} locale={locale} />
+        </div>
       ))}
     </div>
 
@@ -100,26 +140,40 @@ const isCentered = siteConfig.theme.heroAlign === 'center';
 <script is:inline>
   (() => {
     const grid = document.getElementById('articles-grid');
+    const featuredSection = document.getElementById('featured-section');
     const empty = document.getElementById('empty-state');
     const searchInput = document.getElementById('search-input');
     const authorSelect = document.getElementById('author-filter');
     const pills = Array.from(document.querySelectorAll('.pill[data-cat]'));
     if (!grid) return;
 
-    const cards = Array.from(grid.querySelectorAll('.article-card'));
+    const slots = Array.from(grid.querySelectorAll('.grid-slot'));
     let activeCat = 'all';
 
     function applyFilters() {
       const q = (searchInput?.value || '').trim().toLowerCase();
       const author = authorSelect?.value || 'all';
+      const isFiltering = activeCat !== 'all' || author !== 'all' || Boolean(q);
       let visible = 0;
 
-      for (const card of cards) {
+      if (featuredSection) {
+        featuredSection.hidden = isFiltering;
+      }
+
+      for (const slot of slots) {
+        const card = slot.querySelector('.article-card');
+        if (!card) continue;
+        const isDup = slot.classList.contains('is-featured-dup');
+        if (!isFiltering && isDup) {
+          slot.style.display = 'none';
+          visible++;
+          continue;
+        }
         const catMatch = activeCat === 'all' || card.dataset.category === activeCat;
         const authorMatch = author === 'all' || card.dataset.author === author;
         const searchMatch = !q || (card.dataset.search || '').includes(q);
         const show = catMatch && authorMatch && searchMatch;
-        card.style.display = show ? '' : 'none';
+        slot.style.display = show ? '' : 'none';
         if (show) visible++;
       }
 
@@ -137,91 +191,193 @@ const isCentered = siteConfig.theme.heroAlign === 'center';
 
     searchInput?.addEventListener('input', applyFilters);
     authorSelect?.addEventListener('change', applyFilters);
+    applyFilters();
   })();
 </script>
 
 <style>
-  .hero {
-    padding: var(--hero-pad-y) 0 calc(var(--hero-pad-y) * 0.72);
-    border-bottom: 1px solid var(--border);
+  .masthead {
+    padding: clamp(2.5rem, 5vw, 3.75rem) 0 1.75rem;
   }
 
-  .hero-inner {
+  .masthead-inner {
     display: flex;
     flex-direction: column;
-    gap: 1.35rem;
+    gap: 0.7rem;
   }
 
-  .hero-centered .hero-inner {
+  .masthead-centered .masthead-inner {
     align-items: center;
     text-align: center;
   }
 
-  .hero-kicker {
+  .masthead-title {
     margin: 0;
-    font-size: 0.92rem;
-    font-weight: 500;
-    color: var(--accent);
-    letter-spacing: -0.005em;
-  }
-
-  .hero-title {
-    margin: 0;
-    max-width: 17ch;
+    max-width: 24ch;
     font-family: var(--font-heading);
-    font-size: clamp(2.4rem, 5.6vw, 4.35rem);
-    line-height: 1.04;
-    letter-spacing: -0.042em;
-    font-weight: 600;
-    text-wrap: balance;
-    background: linear-gradient(180deg, var(--text) 45%, color-mix(in srgb, var(--text) 62%, var(--text-muted)));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-
-  .hero-lead {
-    margin: 0;
-    max-width: 56ch;
-    font-size: clamp(1.04rem, 1.8vw, 1.24rem);
-    line-height: 1.55;
-    color: var(--text-muted);
-    font-weight: 400;
-    text-wrap: pretty;
-  }
-
-  .hero-pillars {
-    margin-top: 2.25rem;
-    padding-top: 2rem;
-    width: 100%;
-    border-top: 1px solid var(--border);
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 2rem;
-    text-align: left;
-  }
-
-  .pillar {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-
-  .pillar-code {
-    font-size: 0.8rem;
+    font-size: clamp(1.85rem, 3.6vw, 2.75rem);
+    line-height: 1.1;
+    letter-spacing: -0.036em;
     font-weight: 600;
     color: var(--text);
-    letter-spacing: -0.01em;
+    text-wrap: balance;
   }
 
-  .pillar-text {
-    font-size: 0.88rem;
+  .masthead-lead {
+    margin: 0;
+    max-width: 58ch;
+    font-size: 1.02rem;
     line-height: 1.55;
     color: var(--text-muted);
   }
 
+  /* Featured lead article */
+  .featured-section {
+    padding-top: 0.5rem;
+    padding-bottom: 2.25rem;
+  }
+
+  .featured-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1.05rem;
+    padding: clamp(1.75rem, 4vw, 2.75rem);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.35s var(--ease-ive), box-shadow 0.35s var(--ease-ive), border-color 0.35s var(--ease-ive);
+  }
+
+  .featured-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-md);
+  }
+
+  .featured-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.78rem;
+  }
+
+  .featured-label {
+    font-weight: 600;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.7rem;
+  }
+
+  .meta-sep {
+    color: var(--text-muted);
+  }
+
+  .cat-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
+    font-weight: 600;
+    background: transparent !important;
+    padding: 0;
+  }
+
+  .cat-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .featured-level {
+    color: var(--text-muted);
+  }
+
+  .featured-title {
+    margin: 0;
+    max-width: 24ch;
+    font-family: var(--font-heading);
+    font-size: clamp(1.55rem, 3.2vw, 2.35rem);
+    font-weight: 600;
+    line-height: 1.14;
+    letter-spacing: -0.032em;
+    color: var(--text);
+    text-wrap: balance;
+    transition: color 0.25s var(--ease-ive);
+  }
+
+  .featured-card:hover .featured-title {
+    color: var(--accent);
+  }
+
+  .featured-desc {
+    margin: 0;
+    max-width: 64ch;
+    font-size: 1.04rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+  }
+
+  .featured-footer {
+    margin-top: 0.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .author-mini {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+  }
+
+  .avatar-dot {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 0.74rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .author-name {
+    font-size: 0.86rem;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  .featured-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
+  .read-cta {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--accent);
+    transition: transform 0.25s var(--ease-ive);
+  }
+
+  .featured-card:hover .read-cta {
+    transform: translateX(3px);
+  }
+
+  /* Catalog */
   .catalog-section {
-    padding-top: var(--section-gap);
+    padding-top: 0.5rem;
   }
 
   .filter-bar {
@@ -230,7 +386,7 @@ const isCentered = siteConfig.theme.heroAlign === 'center';
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 2.25rem;
+    margin-bottom: 1.75rem;
   }
 
   .category-pills {
@@ -301,6 +457,14 @@ const isCentered = siteConfig.theme.heroAlign === 'center';
     gap: 1.5rem;
   }
 
+  .grid-slot {
+    display: flex;
+  }
+
+  .grid-slot > :global(*) {
+    width: 100%;
+  }
+
   .empty-state {
     margin-top: 2.5rem;
     padding: 3rem;
@@ -311,13 +475,6 @@ const isCentered = siteConfig.theme.heroAlign === 'center';
   }
 
   @media (max-width: 760px) {
-    .hero-pillars {
-      grid-template-columns: 1fr;
-      gap: 1.25rem;
-      margin-top: 1.5rem;
-      padding-top: 1.5rem;
-    }
-
     .category-pills {
       border-radius: var(--radius-control);
     }

@@ -1,8 +1,8 @@
 {
   "brand": {
     "name": "I Fratelli Cuscinetto",
-    "subtitleIt": "Meccanica · AI · Ingegneria",
-    "subtitleEn": "Mechanics · AI · Engineering"
+    "subtitleIt": "Quaderno di ingegneria",
+    "subtitleEn": "Engineering notebook"
   },
   "theme": {
     "preset": "alabaster",
@@ -11,41 +11,22 @@
     "headingFont": "sans",
     "proseFont": "sans",
     "radius": "ive",
-    "spacing": "airy",
-    "heroAlign": "center",
+    "spacing": "balanced",
+    "heroAlign": "left",
     "showBearingMark": true
   },
   "hero": {
-    "kickerIt": "Due ingegneri meccanici. Un ingegnere informatico.",
-    "kickerEn": "Two mechanical engineers. One computer engineer.",
-    "titleIt": "Dove gli ingranaggi incontrano le reti neurali.",
-    "titleEn": "Where gears meet neural networks.",
-    "leadIt": "Divulgazione tecnica senza compromessi: tribologia, termofluidodinamica, modelli fisici, intelligenza artificiale applicata all'industria e architetture software.",
-    "leadEn": "Uncompromising technical writing: tribology, thermofluid dynamics, physical modeling, industrial AI, and software architecture.",
-    "showPillars": true,
-    "pillars": [
-      {
-        "codeIt": "01 · Meccanica",
-        "codeEn": "01 · Mechanics",
-        "textIt": "Organi di macchine, FEM, fluidodinamica e dinamica reale.",
-        "textEn": "Machine elements, FEA, fluid dynamics, and real-world dynamics."
-      },
-      {
-        "codeIt": "02 · AI & Codice",
-        "codeEn": "02 · AI & Code",
-        "textIt": "Deep learning, controllo, ottimizzazione e sistemi ad alte prestazioni.",
-        "textEn": "Deep learning, control, optimization, and high-performance systems."
-      },
-      {
-        "codeIt": "03 · Ibrido",
-        "codeEn": "03 · Hybrid",
-        "textIt": "PINN, manutenzione predittiva, digital twin e sensoristica.",
-        "textEn": "PINNs, predictive maintenance, digital twins, and sensing."
-      }
-    ]
+    "kickerIt": "Quaderno di ingegneria",
+    "kickerEn": "Engineering notebook",
+    "titleIt": "Appunti tecnici su meccanica, AI e sistemi reali.",
+    "titleEn": "Technical notes on mechanical engineering, AI, and real-world systems.",
+    "leadIt": "Articoli approfonditi scritti da tre ingegneri: come funzionano davvero macchine, modelli fisici e algoritmi, senza saltare i passaggi scomodi.",
+    "leadEn": "In-depth articles written by three engineers: how machines, physical models, and algorithms actually work, without skipping the hard parts.",
+    "showPillars": false,
+    "pillars": []
   },
   "footer": {
-    "taglineIt": "Divulgazione tecnica tra ingegneria meccanica, AI e sistemi.",
-    "taglineEn": "Technical writing at the intersection of mechanical engineering, AI, and systems."
+    "taglineIt": "Appunti tecnici su meccanica, AI e sistemi reali.",
+    "taglineEn": "Technical notes on mechanical engineering, AI, and real-world systems."
   }
 }
