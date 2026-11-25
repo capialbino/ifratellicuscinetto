@@ -15,8 +15,13 @@ const initialConfigJson = JSON.stringify(siteConfig);
   locale="it"
 >
   <div id="admin-root" class="admin-shell" data-api-base={apiBase} data-initial-config={initialConfigJson}>
+    <!-- Stato iniziale silenzioso mentre verifica la sessione (evita il flash del login) -->
+    <div id="auth-loading" class="auth-loading" aria-live="polite" aria-label="Verifica sessione">
+      <span class="auth-spinner" aria-hidden="true"></span>
+    </div>
+
     <!-- Login View -->
-    <section id="login-view" class="container login-wrap">
+    <section id="login-view" class="container login-wrap" hidden>
       <div class="login-card">
         <div class="login-head">
           <h1>Accedi</h1>
@@ -924,8 +929,11 @@ const initialConfigJson = JSON.stringify(siteConfig);
     renderPreview();
   }
 
+  const authLoading = document.getElementById('auth-loading');
+
   function enterStudio(authorId: string) {
     currentAuthor = authorId;
+    if (authLoading) authLoading.hidden = true;
     loginView.hidden = true;
     studioView.hidden = false;
     const meta = AUTHOR_META[authorId] || { name: authorId, initials: 'IF', color: '#0071e3' };
@@ -938,6 +946,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
   }
 
   function showLoginScreen() {
+    if (authLoading) authLoading.hidden = true;
     studioView.hidden = true;
     loginView.hidden = false;
   }
@@ -950,11 +959,13 @@ const initialConfigJson = JSON.stringify(siteConfig);
         const data = await res.json();
         if (data.authenticated && data.author) {
           enterStudio(data.author);
+          return;
         }
       }
     } catch {
-      // L'utente vede comunque la schermata pulita di login
+      // Fallback al form di login
     }
+    showLoginScreen();
   }
 
   // Event listeners
@@ -1701,6 +1712,28 @@ const initialConfigJson = JSON.stringify(siteConfig);
 <style>
   .admin-shell {
     min-height: calc(100vh - 200px);
+  }
+
+  .auth-loading {
+    min-height: 45vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .auth-spinner {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--border-strong);
+    border-top-color: var(--accent);
+    animation: admin-spin 0.7s linear infinite;
+  }
+
+  @keyframes admin-spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .login-wrap {
