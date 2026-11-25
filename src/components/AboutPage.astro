@@ -19,25 +19,22 @@ const members = (Object.keys(AUTHORS) as Array<keyof typeof AUTHORS>).map((id) =
 <BaseLayout
   title={locale === 'it' ? `Chi siamo — ${siteConfig.brand.name}` : `About — ${siteConfig.brand.name}`}
   description={locale === 'it'
-    ? 'Due ingegneri meccanici e un ingegnere informatico che scrivono di scienza, fisica applicata, meccanica e AI.'
-    : 'Two mechanical engineers and a computer engineer writing about science, applied physics, mechanical engineering, and AI.'}
+    ? 'Tre ingegneri che scrivono di meccanica, software e intelligenza artificiale.'
+    : 'Three engineers writing about mechanical engineering, software, and artificial intelligence.'}
   activeNav="chi-siamo"
   locale={locale}
   languageSwitchHref={languageSwitchHref}
 >
-  <section class="about-hero engineering-grid">
+  <section class="about-hero">
     <div class="container about-hero-grid">
       <div class="about-hero-inner">
-        <p class="about-eyebrow">{locale === 'it' ? 'Il collettivo' : 'The collective'}</p>
         <h1 class="about-title">
-          {locale === 'it'
-            ? 'Tre ingegneri. Un solo tavolo di progetto.'
-            : 'Three engineers. One workbench.'}
+          {locale === 'it' ? 'Chi siamo' : 'About'}
         </h1>
         <p class="about-lead">
           {locale === 'it'
-            ? `${siteConfig.brand.name} nasce dall'idea di mettere insieme chi progetta macchine reali e chi addestra modelli e scrive software. Perché oggi la meccanica senza algoritmi è cieca, e l'AI senza fisica spesso allucina.`
-            : `${siteConfig.brand.name} brings together people who design real machines and those who train models and write software. Today, mechanics without algorithms is blind, while AI without physics often hallucinates.`}
+            ? 'Due ingegneri meccanici e un ingegnere informatico. Scriviamo articoli tecnici su quello che studiamo e su cui lavoriamo: meccanica, sistemi, software e AI.'
+            : 'Two mechanical engineers and a computer engineer. We write technical articles on what we study and work on: mechanical engineering, systems, software, and AI.'}
         </p>
       </div>
 
@@ -46,7 +43,6 @@ const members = (Object.keys(AUTHORS) as Array<keyof typeof AUTHORS>).map((id) =
   </section>
 
   <section class="container team-section">
-    <h2 class="section-heading">{locale === 'it' ? 'La redazione' : 'The team'}</h2>
     <div class="team-grid">
       {members.map((member) => (
         <div class="member-card">
@@ -55,7 +51,7 @@ const members = (Object.keys(AUTHORS) as Array<keyof typeof AUTHORS>).map((id) =
               {member.initials}
             </span>
             <div>
-              <h3 class="member-name">{member.name}</h3>
+              <h2 class="member-name">{member.name}</h2>
               <div class="member-role">{member.role}</div>
               <div class="member-disc">{member.discipline}</div>
             </div>
@@ -64,54 +60,24 @@ const members = (Object.keys(AUTHORS) as Array<keyof typeof AUTHORS>).map((id) =
         </div>
       ))}
     </div>
-
-    <div class="manifesto">
-      <h2>{locale === 'it' ? 'Come scriviamo i nostri articoli' : 'How we write'}</h2>
-      <div class="manifesto-grid">
-        <div>
-          <h3>{locale === 'it' ? 'Rigore accessibile' : 'Accessible rigour'}</h3>
-          <p>
-            {locale === 'it'
-              ? 'Partiamo dall’intuizione fisica o algoritmica, ma non nascondiamo le formule o il codice quando servono a capire davvero.'
-              : 'We start with physical or algorithmic intuition, but never hide the equations or code needed to understand the details.'}
-          </p>
-        </div>
-        <div>
-          <h3>{locale === 'it' ? 'Zero fuffa' : 'Zero fluff'}</h3>
-          <p>
-            {locale === 'it'
-              ? 'Solo casi reali, modelli matematici, codice riproducibile e problemi ingegneristici concreti.'
-              : 'Only real cases, mathematical models, reproducible code, and concrete engineering problems.'}
-          </p>
-        </div>
-        <div>
-          <h3>{locale === 'it' ? 'Sempre bilingue' : 'Always bilingual'}</h3>
-          <p>
-            {locale === 'it'
-              ? 'Scriviamo in italiano con supporto nativo a LaTeX e codice, con traduzione automatica in inglese per ogni articolo pubblicato.'
-              : 'Written in Italian with native LaTeX and code support, automatically translated into English upon publication.'}
-          </p>
-        </div>
-      </div>
-    </div>
   </section>
 </BaseLayout>
 
 <style>
   .about-hero {
-    padding: var(--hero-pad-y) 0 calc(var(--hero-pad-y) * 0.72);
+    padding: clamp(2.5rem, 6vw, 4.25rem) 0 clamp(2rem, 4vw, 3rem);
     border-bottom: 1px solid var(--border);
   }
 
   .about-hero-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+    grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
     align-items: center;
     gap: clamp(2rem, 5vw, 3.5rem);
   }
 
   .about-hero-inner {
-    max-width: 640px;
+    max-width: 560px;
   }
 
   @media (max-width: 860px) {
@@ -120,40 +86,24 @@ const members = (Object.keys(AUTHORS) as Array<keyof typeof AUTHORS>).map((id) =
     }
   }
 
-  .about-eyebrow {
-    margin: 0 0 0.75rem;
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: var(--accent);
-  }
-
   .about-title {
-    margin: 0 0 1.15rem;
+    margin: 0 0 1rem;
     font-family: var(--font-heading);
-    font-size: clamp(2.15rem, 4.8vw, 3.6rem);
+    font-size: clamp(2rem, 4.4vw, 3.2rem);
     font-weight: 600;
     letter-spacing: -0.04em;
-    line-height: 1.06;
-    text-wrap: balance;
+    line-height: 1.08;
   }
 
   .about-lead {
     margin: 0;
-    font-size: clamp(1.04rem, 1.8vw, 1.22rem);
+    font-size: clamp(1rem, 1.6vw, 1.15rem);
     line-height: 1.6;
     color: var(--text-muted);
   }
 
   .team-section {
     padding-top: var(--section-gap);
-  }
-
-  .section-heading {
-    margin: 0 0 1.5rem;
-    font-family: var(--font-heading);
-    font-size: 1.55rem;
-    font-weight: 600;
-    letter-spacing: -0.03em;
   }
 
   .team-grid {
@@ -211,42 +161,6 @@ const members = (Object.keys(AUTHORS) as Array<keyof typeof AUTHORS>).map((id) =
   .member-bio {
     margin: 0;
     font-size: 0.92rem;
-    line-height: 1.6;
-    color: var(--text-muted);
-  }
-
-  .manifesto {
-    margin-top: 3rem;
-    padding: 2.25rem;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-card);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .manifesto h2 {
-    margin: 0 0 1.5rem;
-    font-family: var(--font-heading);
-    font-size: 1.4rem;
-    font-weight: 600;
-    letter-spacing: -0.025em;
-  }
-
-  .manifesto-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1.75rem;
-  }
-
-  .manifesto-grid h3 {
-    margin: 0 0 0.4rem;
-    font-size: 0.96rem;
-    font-weight: 600;
-  }
-
-  .manifesto-grid p {
-    margin: 0;
-    font-size: 0.9rem;
     line-height: 1.6;
     color: var(--text-muted);
   }

@@ -36,7 +36,7 @@ export const AUTHORS: Record<Author['id'], Author> = {
     name: 'Alessandro Capialbi',
     role: 'Ingegnere Informatico & AI Engineer',
     discipline: 'Intelligenza Artificiale & Software',
-    bio: 'Costruisce ponti tra reti neurali e mondo fisico: PINN, manutenzione predittiva, edge AI e architetture software ad alte prestazioni.',
+    bio: 'Si occupa di intelligenza artificiale, sistemi software e applicazioni tecniche del machine learning.',
     initials: 'AC',
     accentColor: '#2563eb',
   },
@@ -56,7 +56,7 @@ const ENGLISH_AUTHORS: Record<Author['id'], Pick<Author, 'role' | 'discipline' |
   'alessandro-capialbi': {
     role: 'Computer Engineer & AI Engineer',
     discipline: 'Artificial Intelligence & Software',
-    bio: 'Builds bridges between neural networks and the physical world: PINNs, predictive maintenance, edge AI, and high-performance software architectures.',
+    bio: 'Works on artificial intelligence, software systems, and applied machine learning.',
   },
 };
 
