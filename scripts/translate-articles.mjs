@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { generateFastJson } from '../lib/gemini-fast.js';
 
 const ARTICLES_DIR = path.resolve('src/content/articles');
 const EN_DIR = path.join(ARTICLES_DIR, 'en');
@@ -104,67 +105,12 @@ function restoreTechnicalSegments(text, tokens, tokenPattern) {
   });
 }
 
-let cachedGeminiModel = null;
-
-async function resolveGeminiModel(apiKey) {
-  if (process.env.GEMINI_MODEL) return process.env.GEMINI_MODEL.replace(/^models\//, '');
-  if (cachedGeminiModel) return cachedGeminiModel;
-
-  const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}&pageSize=100`;
-  const res = await fetch(listUrl);
-  if (!res.ok) {
-    const errText = (await res.text()).replace(/\s+/g, ' ').slice(0, 300);
-    throw new Error(`Gemini ListModels ${res.status}: ${errText}`);
-  }
-
-  const data = await res.json();
-  const candidates = (data.models || [])
-    .filter(
-      (m) =>
-        Array.isArray(m.supportedGenerationMethods) &&
-        m.supportedGenerationMethods.includes('generateContent') &&
-        typeof m.name === 'string'
-    )
-    .map((m) => m.name.replace(/^models\//, ''))
-    .filter(
-      (id) =>
-        id.startsWith('gemini-') &&
-        !/(image|audio|tts|live|veo|embedding|aqa|vision|robotics|computer-use|omni)/i.test(id)
-    );
-
-  // Preferisce l'alias stabile `gemini-flash-latest` o il modello `flash` più recente
-  const picked =
-    candidates.find((id) => id === 'gemini-flash-latest') ||
-    candidates
-      .filter((id) => /flash/i.test(id) && !/lite/i.test(id))
-      .sort()
-      .at(-1) ||
-    candidates
-      .filter((id) => /flash/i.test(id))
-      .sort()
-      .at(-1) ||
-    candidates.sort().at(-1);
-
-  if (!picked) {
-    throw new Error('Nessun modello Gemini compatibile con generateContent trovato per questa API key.');
-  }
-
-  cachedGeminiModel = picked;
-  return picked;
-}
-
 async function translateWithGemini(article) {
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = await resolveGeminiModel(apiKey);
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-
   const prompt = [
     'Translate this Italian technical engineering article into clear, natural, idiomatic English.',
-    'Rules:',
-    '- Preserve ALL Markdown headings, lists, blockquotes, tables, image URLs, and code blocks verbatim.',
-    '- Preserve ALL LaTeX formulas ($...$ and $$...$$) verbatim without changing symbols.',
-    '- Translate technical terms accurately (e.g. tribologia -> tribology, accoppiamento con interferenza -> interference fit, cuscinetto volvente -> rolling-element bearing).',
-    '- Return JSON with keys: "title" (string), "description" (string), "tags" (array of lowercase hyphenated English tag strings), "body" (string Markdown).',
+    'Rules: preserve ALL Markdown structure, image URLs, code blocks, and LaTeX ($...$ / $$...$$) verbatim; translate engineering terms accurately.',
+    'Return JSON: {"title":string,"description":string,"tags":string[],"body":string}.',
     '',
     `TITLE: ${article.frontmatter.title}`,
     `DESCRIPTION: ${article.frontmatter.description}`,
@@ -173,27 +119,13 @@ async function translateWithGemini(article) {
     article.body,
   ].join('\n');
 
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.2,
-        responseMimeType: 'application/json',
-      },
-    }),
+  const { model, parsed } = await generateFastJson({
+    apiKey,
+    envModel: process.env.GEMINI_MODEL,
+    tier: 'flash',
+    prompt,
+    temperature: 0.15,
   });
-
-  if (!res.ok) {
-    const errText = (await res.text()).replace(/\s+/g, ' ').slice(0, 300);
-    throw new Error(`Gemini API ${res.status} (${model}): ${errText}`);
-  }
-
-  const data = await res.json();
-  const rawJson = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!rawJson) throw new Error(`Gemini (${model}) returned empty response`);
-  const parsed = JSON.parse(rawJson);
 
   return {
     title: String(parsed.title || article.frontmatter.title).trim(),

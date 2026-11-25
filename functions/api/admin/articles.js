@@ -10,6 +10,7 @@ import {
   utf8ToBase64,
   validateArticlePayload,
 } from '../../../lib/admin-server.js';
+import { generateFastJson } from '../../../lib/gemini-fast.js';
 
 async function requireAuth(request, env) {
   const session = await getAuthenticatedSession(request, env);
@@ -17,39 +18,6 @@ async function requireAuth(request, env) {
     return { error: jsonResponse({ error: 'Non autenticato.' }, 401) };
   }
   return { session };
-}
-
-let cachedSeoModel = null;
-
-async function resolveSeoGeminiModel(apiKey, envModel) {
-  if (envModel) return String(envModel).replace(/^models\//, '');
-  if (cachedSeoModel) return cachedSeoModel;
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}&pageSize=100`
-  );
-  if (!res.ok) return null;
-  const data = await res.json();
-  const candidates = (data.models || [])
-    .filter(
-      (m) =>
-        Array.isArray(m.supportedGenerationMethods) &&
-        m.supportedGenerationMethods.includes('generateContent') &&
-        typeof m.name === 'string'
-    )
-    .map((m) => m.name.replace(/^models\//, ''))
-    .filter(
-      (id) =>
-        id.startsWith('gemini-') &&
-        !/(image|audio|tts|live|veo|embedding|aqa|vision|robotics|computer-use|omni)/i.test(id)
-    );
-  const picked =
-    candidates.find((id) => id === 'gemini-flash-latest') ||
-    candidates.filter((id) => /flash/i.test(id) && !/lite/i.test(id)).sort().at(-1) ||
-    candidates.filter((id) => /flash/i.test(id)).sort().at(-1) ||
-    candidates.sort().at(-1) ||
-    null;
-  cachedSeoModel = picked;
-  return picked;
 }
 
 function fallbackDescription(body, title) {
@@ -69,59 +37,42 @@ async function generateAutoSeoAndTags(env, payload) {
   const apiKey = env.GEMINI_API_KEY;
   if (apiKey) {
     try {
-      const model = await resolveSeoGeminiModel(apiKey, env.GEMINI_MODEL);
-      if (model) {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-        const prompt = [
-          'Sei un SEO engineer specializzato in divulgazione tecnica di ingegneria meccanica e intelligenza artificiale.',
-          'Dato questo articolo italiano, genera SOLO un JSON con:',
-          '- "description": meta description SEO autorevole e chiara in italiano (120-158 caratteri, nessuna virgoletta superflua).',
-          '- "tags": array di 3-5 tag tecnici italiani in minuscolo con trattini (es. ["cuscinetti", "tribologia", "manutenzione-predittiva"]).',
-          '',
-          `TITOLO: ${payload.title}`,
-          `CATEGORIA: ${payload.category}`,
-          'TESTO:',
-          payload.body.slice(0, 12000),
-        ].join('\n');
+      const prompt = [
+        'SEO engineer per blog tecnico italiano (meccanica & AI).',
+        'Genera JSON compatto: {"description":"meta description SEO 120-158 caratteri","tags":["3-5 tag italiani minuscoli con trattini"]}.',
+        `TITOLO: ${payload.title}`,
+        `CATEGORIA: ${payload.category}`,
+        'ESTRATTO:',
+        payload.body.slice(0, 3500),
+      ].join('\n');
 
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.2,
-              responseMimeType: 'application/json',
-            },
-          }),
-        });
+      const { parsed } = await generateFastJson({
+        apiKey,
+        envModel: env.GEMINI_MODEL,
+        tier: 'lite',
+        prompt,
+        temperature: 0.15,
+        maxOutputTokens: 256,
+      });
 
-        if (res.ok) {
-          const data = await res.json();
-          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            const parsed = JSON.parse(text);
-            const desc = typeof parsed.description === 'string' ? parsed.description.trim().slice(0, 180) : '';
-            const tags = Array.isArray(parsed.tags)
-              ? parsed.tags
-                  .map((t) =>
-                    String(t)
-                      .toLowerCase()
-                      .normalize('NFD')
-                      .replace(/[\u0300-\u036f]/g, '')
-                      .replace(/[^a-z0-9]+/g, '-')
-                      .replace(/^-+|-+$/g, '')
-                  )
-                  .filter(Boolean)
-                  .slice(0, 5)
-              : [];
-            return {
-              description: desc || payload.description || fallbackDescription(payload.body, payload.title),
-              tags: tags.length > 0 ? tags : payload.tags,
-            };
-          }
-        }
-      }
+      const desc = typeof parsed.description === 'string' ? parsed.description.trim().slice(0, 180) : '';
+      const tags = Array.isArray(parsed.tags)
+        ? parsed.tags
+            .map((t) =>
+              String(t)
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '')
+            )
+            .filter(Boolean)
+            .slice(0, 5)
+        : [];
+      return {
+        description: desc || payload.description || fallbackDescription(payload.body, payload.title),
+        tags: tags.length > 0 ? tags : payload.tags,
+      };
     } catch {
       // Fallback silenzioso per non bloccare mai la pubblicazione
     }
