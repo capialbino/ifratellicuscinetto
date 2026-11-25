@@ -1,7 +1,7 @@
 import type { Locale } from '../utils/articles';
 
 export interface Author {
-  id: 'federico' | 'alessandro-rossi' | 'alessandro-capialbi';
+  id: 'federico-pappafava' | 'alessandro-rossi' | 'alessandro-capialbi';
   name: string;
   role: string;
   discipline: string;
@@ -13,8 +13,8 @@ export interface Author {
 }
 
 export const AUTHORS: Record<Author['id'], Author> = {
-  federico: {
-    id: 'federico',
+  'federico-pappafava': {
+    id: 'federico-pappafava',
     name: 'Federico Pappafava',
     role: 'Ingegnere Meccanico',
     discipline: 'Turbo & Formula 1',
@@ -43,7 +43,7 @@ export const AUTHORS: Record<Author['id'], Author> = {
 };
 
 const ENGLISH_AUTHORS: Record<Author['id'], Pick<Author, 'role' | 'discipline' | 'bio'>> = {
-  federico: {
+  'federico-pappafava': {
     role: 'Mechanical Engineer',
     discipline: 'Turbochargers & Formula 1',
     bio: 'Works on Formula 1 turbochargers, at the intersection of mechanical engineering and high-performance systems.',

@@ -9,7 +9,7 @@ const articles = defineCollection({
     description: z.string(),
     pubDate: z.coerce.date(),
     updatedDate: z.coerce.date().optional(),
-    author: z.enum(['federico', 'alessandro-rossi', 'alessandro-capialbi']),
+    author: z.enum(['federico-pappafava', 'alessandro-rossi', 'alessandro-capialbi']),
     category: z.enum(['Meccanica', 'AI & Software', 'Meccatronica & Hybrid']),
     tags: z.array(z.string()).default([]),
     level: z.enum(['Divulgativo', 'Intermedio', 'Tecnico / Avanzato']).default('Intermedio'),

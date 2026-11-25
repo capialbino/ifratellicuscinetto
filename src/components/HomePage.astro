@@ -74,7 +74,7 @@ const languageSwitchHref = locale === 'it' ? '/en/' : '/';
       <div class="filter-controls">
         <select id="author-filter" aria-label={locale === 'it' ? 'Filtra per autore' : 'Filter by author'} class="control-select">
           <option value="all">{locale === 'it' ? 'Tutti gli autori' : 'All authors'}</option>
-          {(['federico', 'alessandro-rossi', 'alessandro-capialbi'] as const).map((id) => {
+          {(['federico-pappafava', 'alessandro-rossi', 'alessandro-capialbi'] as const).map((id) => {
             const a = getAuthor(id, locale);
             return (
             <option value={a.id}>{a.name} ({a.role})</option>

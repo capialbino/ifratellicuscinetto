@@ -20,7 +20,7 @@ Con **Cloudflare Pages** i tuoi co-autori non devono avere un account GitHub: fa
    - **Build output directory:** `dist`
 2. In **Settings → Environment variables** imposta:
    - `GITHUB_TOKEN`: GitHub Fine-grained PAT con permesso **Contents: Read and write** sul repo `capialbino/ifratellicuscinetto`.
-   - `ADMIN_PASSWORD`: password condivisa della redazione (oppure `ADMIN_PASSWORDS` in JSON per password diverse, es. `{"federico":"pw1","alessandro-rossi":"pw2","alessandro-capialbi":"pw3"}`).
+   - `ADMIN_PASSWORD`: password condivisa della redazione (oppure `ADMIN_PASSWORDS` in JSON per password diverse, es. `{"federico-pappafava":"pw1","alessandro-rossi":"pw2","alessandro-capialbi":"pw3"}`).
    - `ADMIN_SESSION_SECRET`: stringa casuale lunga per firmare i cookie di sessione.
 3. Opzionali: `GITHUB_REPO` (default `capialbino/ifratellicuscinetto`), `GITHUB_BRANCH` (default `main`).
 
