@@ -47,6 +47,7 @@ const sanitizeSchema = {
     ...katexMathTags,
     ...katexSvgTags,
     'span',
+    'video',
   ],
   attributes: {
     ...(defaultSchema.attributes || {}),
@@ -83,6 +84,19 @@ const sanitizeSchema = {
       ...(defaultSchema.attributes?.code || []),
       'className',
       'style',
+    ],
+    video: [
+      'className',
+      'src',
+      'autoplay',
+      'autoPlay',
+      'loop',
+      'muted',
+      'playsinline',
+      'playsInline',
+      'controls',
+      'ariaLabel',
+      'aria-label',
     ],
     math: ['xmlns', 'display', 'className', 'style', 'ariaHidden', 'aria-hidden'],
     annotation: ['encoding', 'className'],
@@ -136,6 +150,23 @@ function rehypePrefixUploadsBase() {
             className: ['model-3d-frame'],
             'data-src': resolvedSrc,
             'data-label': label,
+          };
+          node.children = [];
+          return;
+        }
+        if (typeof href === 'string' && /\.(mp4|webm)(\?.*)?$/i.test(href) && href.startsWith('/uploads/')) {
+          const resolvedSrc = prefix ? `${prefix}${href}` : href;
+          const label = extractText(node).replace(/^video:\s*/i, '').trim() || 'Animazione video';
+          node.tagName = 'video';
+          node.properties = {
+            className: ['article-video'],
+            src: resolvedSrc,
+            autoPlay: true,
+            loop: true,
+            muted: true,
+            playsInline: true,
+            controls: true,
+            'aria-label': label,
           };
           node.children = [];
           return;

@@ -436,6 +436,16 @@ html.dark .astro-code span {
   box-shadow: var(--shadow-sm);
 }
 
+.prose .article-video {
+  width: 100%;
+  display: block;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  margin: 1.85em 0;
+  background: var(--bg-elevated);
+}
+
 .prose table {
   width: 100%;
   border-collapse: collapse;

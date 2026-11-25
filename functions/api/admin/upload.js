@@ -10,9 +10,11 @@ import {
 const MAX_REQUEST_BYTES = 15 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const MAX_MODEL_BYTES = 10 * 1024 * 1024;
-// Solo immagini raster sicure + modelli 3D binari glTF (.glb) con verifica magic bytes
+const MAX_VIDEO_BYTES = 10 * 1024 * 1024;
+// Solo immagini raster sicure + modelli 3D binari glTF (.glb) + video MP4/WebM con verifica magic bytes
 const ALLOWED_IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif']);
 const ALLOWED_MODEL_EXTS = new Set(['.glb']);
+const ALLOWED_VIDEO_EXTS = new Set(['.mp4', '.webm']);
 
 function decodeHeaderBytes(contentBase64) {
   if (contentBase64.length < 16) return null;
@@ -52,6 +54,12 @@ function hasValidMagicBytes(ext, contentBase64) {
   if (ext === '.glb') {
     return ascii(0, 4) === 'glTF';
   }
+  if (ext === '.mp4') {
+    return ascii(4, 8) === 'ftyp';
+  }
+  if (ext === '.webm') {
+    return b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3;
+  }
   return false;
 }
 
@@ -80,10 +88,11 @@ export async function onRequestPost({ request, env }) {
 
   const isImage = ALLOWED_IMAGE_EXTS.has(ext);
   const isModel = ALLOWED_MODEL_EXTS.has(ext);
+  const isVideo = ALLOWED_VIDEO_EXTS.has(ext);
 
-  if (!isImage && !isModel) {
+  if (!isImage && !isModel && !isVideo) {
     return jsonResponse(
-      { error: 'Formato non consentito. Usa PNG, JPG, WebP, GIF, AVIF o modelli 3D .glb.' },
+      { error: 'Formato non consentito. Usa PNG, JPG, WebP, GIF, AVIF, video .mp4/.webm o modelli 3D .glb.' },
       400
     );
   }
@@ -101,17 +110,19 @@ export async function onRequestPost({ request, env }) {
       {
         error: isModel
           ? 'File .glb non valido (header glTF binario mancante).'
-          : 'Contenuto file non valido per il formato dichiarato.',
+          : isVideo
+            ? 'File video non valido (header MP4/WebM mancante).'
+            : 'Contenuto file non valido per il formato dichiarato.',
       },
       400
     );
   }
 
   const approxBytes = Math.floor((contentBase64.length * 3) / 4);
-  const maxBytes = isModel ? MAX_MODEL_BYTES : MAX_IMAGE_BYTES;
+  const maxBytes = isModel ? MAX_MODEL_BYTES : isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
   if (approxBytes > maxBytes) {
     return jsonResponse(
-      { error: `File troppo grande (massimo ${isModel ? '10' : '4'} MB).` },
+      { error: `File troppo grande (massimo ${isImage ? '4' : '10'} MB).` },
       413
     );
   }
@@ -119,12 +130,13 @@ export async function onRequestPost({ request, env }) {
   const { branch } = getRepoConfig(env);
   const stamp = Date.now();
   const repoPath = `public/uploads/${slug}/${stamp}-${filename}`;
+  const kindLabel = isModel ? 'modello 3D' : isVideo ? 'video' : 'immagine';
 
   const putRes = await githubRequest(env, `/contents/${repoPath}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      message: `carica ${isModel ? 'modello 3D' : 'immagine'} ${filename} per ${slug} (via admin)`,
+      message: `carica ${kindLabel} ${filename} per ${slug} (via admin: ${session.author})`,
       content: contentBase64,
       branch,
     }),
