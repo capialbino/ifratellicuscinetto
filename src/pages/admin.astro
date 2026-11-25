@@ -2,17 +2,19 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { AUTHORS } from '../data/authors';
 import { withBase } from '../utils/paths';
+import { siteConfig } from '../utils/site-config';
 
 const authorsList = Object.values(AUTHORS);
 const apiBase = withBase('/api/admin');
+const initialConfigJson = JSON.stringify(siteConfig);
 ---
 
 <BaseLayout
-  title="Area Redazione — I Fratelli Cuscinetto"
-  description="Pannello editoriale per scrivere, visualizzare in anteprima e pubblicare articoli."
+  title={`Area Redazione — ${siteConfig.brand.name}`}
+  description="Pannello editoriale per scrivere articoli e personalizzare il design del sito."
   locale="it"
 >
-  <div id="admin-root" class="admin-shell" data-api-base={apiBase}>
+  <div id="admin-root" class="admin-shell" data-api-base={apiBase} data-initial-config={initialConfigJson}>
     <!-- Login View -->
     <section id="login-view" class="container login-wrap">
       <div class="login-card">
@@ -107,6 +109,11 @@ const apiBase = withBase('/api/admin');
             <span id="studio-user-label" class="muted"></span>
           </div>
 
+          <div class="studio-tabs" role="tablist">
+            <button type="button" class="studio-tab active" data-studio-tab="articles">Articoli</button>
+            <button type="button" class="studio-tab" data-studio-tab="design">Aspetto &amp; Testi</button>
+          </div>
+
           <div class="studio-actions">
             <button type="button" id="new-article-btn" class="btn btn-secondary">
               + Nuovo articolo
@@ -118,7 +125,7 @@ const apiBase = withBase('/api/admin');
         </div>
       </div>
 
-      <div class="container studio-grid">
+      <div id="panel-articles" class="container studio-grid">
         <!-- Sidebar elenco articoli -->
         <aside class="articles-sidebar">
           <div class="sidebar-header">
@@ -253,6 +260,167 @@ const apiBase = withBase('/api/admin');
               </button>
               <button type="button" id="publish-btn" class="btn btn-primary">
                 Pubblica articolo
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pannello Aspetto & Testi (Design Customizer) -->
+      <div id="panel-design" class="container design-panel-wrap" hidden>
+        <div id="design-banner" class="toast-banner" hidden></div>
+
+        <div class="design-grid">
+          <div class="design-card">
+            <h2>Superficie &amp; Palette</h2>
+            <p class="muted small">Le modifiche si applicano subito in anteprima su questa pagina. Premi Salva per pubblicarle sul sito.</p>
+
+            <div class="preset-grid">
+              <button type="button" class="preset-chip" data-preset-pick="alabaster">
+                <span class="swatch-pair"><i style="background:#f5f5f7"></i><i style="background:#0071e3"></i></span>
+                <span>Alabaster Titanium</span>
+              </button>
+              <button type="button" class="preset-chip" data-preset-pick="ceramic">
+                <span class="swatch-pair"><i style="background:#f6f4ef"></i><i style="background:#c85a17"></i></span>
+                <span>Warm Ceramic</span>
+              </button>
+              <button type="button" class="preset-chip" data-preset-pick="graphite">
+                <span class="swatch-pair"><i style="background:#eef0f4"></i><i style="background:#1d1d1f"></i></span>
+                <span>Cool Graphite</span>
+              </button>
+              <button type="button" class="preset-chip" data-preset-pick="obsidian">
+                <span class="swatch-pair"><i style="background:#000000"></i><i style="background:#2997ff"></i></span>
+                <span>Obsidian Black</span>
+              </button>
+            </div>
+
+            <div class="meta-grid" style="margin-top:1.1rem">
+              <label class="field">
+                <span>Colore accento (Chiaro)</span>
+                <div class="color-row">
+                  <input id="cfg-accent-light" type="color" value="#0071e3" />
+                  <input id="cfg-accent-light-hex" type="text" value="#0071e3" />
+                </div>
+              </label>
+
+              <label class="field">
+                <span>Colore accento (Scuro)</span>
+                <div class="color-row">
+                  <input id="cfg-accent-dark" type="color" value="#2997ff" />
+                  <input id="cfg-accent-dark-hex" type="text" value="#2997ff" />
+                </div>
+              </label>
+
+              <label class="field">
+                <span>Font titoli</span>
+                <select id="cfg-heading-font">
+                  <option value="sans">SF / Inter Sans (Apple)</option>
+                  <option value="serif">Source Serif (Editoriale)</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Font testo articoli</span>
+                <select id="cfg-prose-font">
+                  <option value="sans">SF / Inter Sans (Pulito)</option>
+                  <option value="serif">Source Serif (Rivista)</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Raggio angoli</span>
+                <select id="cfg-radius">
+                  <option value="sharp">Precisione (10px)</option>
+                  <option value="ive">Jony Ive (22px)</option>
+                  <option value="soft">Morbido (28px)</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Spaziatura / Respiro</span>
+                <select id="cfg-spacing">
+                  <option value="airy">Arioso (Apple)</option>
+                  <option value="balanced">Bilanciato</option>
+                  <option value="compact">Compatto</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Allineamento Hero</span>
+                <select id="cfg-hero-align">
+                  <option value="center">Centrato</option>
+                  <option value="left">Allineato a sinistra</option>
+                </select>
+              </label>
+
+              <div class="field" style="justify-content:center;gap:0.6rem">
+                <label class="checkbox-inline">
+                  <input id="cfg-show-bearing" type="checkbox" checked />
+                  <span>Mostra logo cuscinetto</span>
+                </label>
+                <label class="checkbox-inline">
+                  <input id="cfg-show-pillars" type="checkbox" checked />
+                  <span>Mostra 3 pilastri in home</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="design-card">
+            <h2>Testi Home &amp; Brand</h2>
+            <div class="meta-grid">
+              <label class="field field-wide">
+                <span>Nome del sito</span>
+                <input id="cfg-brand-name" type="text" />
+              </label>
+              <label class="field">
+                <span>Sottotitolo header (IT)</span>
+                <input id="cfg-brand-sub-it" type="text" />
+              </label>
+              <label class="field">
+                <span>Sottotitolo header (EN)</span>
+                <input id="cfg-brand-sub-en" type="text" />
+              </label>
+              <label class="field">
+                <span>Occhiello Hero (IT)</span>
+                <input id="cfg-kicker-it" type="text" />
+              </label>
+              <label class="field">
+                <span>Occhiello Hero (EN)</span>
+                <input id="cfg-kicker-en" type="text" />
+              </label>
+              <label class="field field-wide">
+                <span>Titolo Hero (IT)</span>
+                <input id="cfg-title-it" type="text" />
+              </label>
+              <label class="field field-wide">
+                <span>Titolo Hero (EN)</span>
+                <input id="cfg-title-en" type="text" />
+              </label>
+              <label class="field field-wide">
+                <span>Descrizione Hero (IT)</span>
+                <textarea id="cfg-lead-it" rows="2"></textarea>
+              </label>
+              <label class="field field-wide">
+                <span>Descrizione Hero (EN)</span>
+                <textarea id="cfg-lead-en" rows="2"></textarea>
+              </label>
+              <label class="field">
+                <span>Tagline Footer (IT)</span>
+                <input id="cfg-footer-it" type="text" />
+              </label>
+              <label class="field">
+                <span>Tagline Footer (EN)</span>
+                <input id="cfg-footer-en" type="text" />
+              </label>
+            </div>
+
+            <div class="publish-bar" style="margin-top:1.25rem">
+              <button type="button" id="reset-design-btn" class="btn btn-secondary">
+                Ripristina default Jony Ive
+              </button>
+              <button type="button" id="save-design-btn" class="btn btn-primary">
+                Salva design e pubblica
               </button>
             </div>
           </div>
@@ -1031,6 +1199,287 @@ const apiBase = withBase('/api/admin');
     });
   });
 
+  // --- Studio Tabs & Live Design Customizer ---
+  const panelArticles = document.getElementById('panel-articles')!;
+  const panelDesign = document.getElementById('panel-design')!;
+  const studioTabs = document.querySelectorAll('.studio-tab[data-studio-tab]');
+  const designBanner = document.getElementById('design-banner')!;
+  const saveDesignBtn = document.getElementById('save-design-btn') as HTMLButtonElement;
+  const resetDesignBtn = document.getElementById('reset-design-btn') as HTMLButtonElement;
+
+  const PRESET_DEFAULTS: Record<string, { accentLight: string; accentDark: string }> = {
+    alabaster: { accentLight: '#0071e3', accentDark: '#2997ff' },
+    ceramic: { accentLight: '#c85a17', accentDark: '#f0883e' },
+    graphite: { accentLight: '#1d1d1f', accentDark: '#e5e5ea' },
+    obsidian: { accentLight: '#2997ff', accentDark: '#2997ff' },
+  };
+
+  let currentSiteConfig = JSON.parse(root?.dataset.initialConfig || '{}');
+  let siteConfigSha: string | null = null;
+  let designLoadedFromRepo = false;
+
+  const cfgEl = {
+    accentLight: document.getElementById('cfg-accent-light') as HTMLInputElement,
+    accentLightHex: document.getElementById('cfg-accent-light-hex') as HTMLInputElement,
+    accentDark: document.getElementById('cfg-accent-dark') as HTMLInputElement,
+    accentDarkHex: document.getElementById('cfg-accent-dark-hex') as HTMLInputElement,
+    headingFont: document.getElementById('cfg-heading-font') as HTMLSelectElement,
+    proseFont: document.getElementById('cfg-prose-font') as HTMLSelectElement,
+    radius: document.getElementById('cfg-radius') as HTMLSelectElement,
+    spacing: document.getElementById('cfg-spacing') as HTMLSelectElement,
+    heroAlign: document.getElementById('cfg-hero-align') as HTMLSelectElement,
+    showBearing: document.getElementById('cfg-show-bearing') as HTMLInputElement,
+    showPillars: document.getElementById('cfg-show-pillars') as HTMLInputElement,
+    brandName: document.getElementById('cfg-brand-name') as HTMLInputElement,
+    brandSubIt: document.getElementById('cfg-brand-sub-it') as HTMLInputElement,
+    brandSubEn: document.getElementById('cfg-brand-sub-en') as HTMLInputElement,
+    kickerIt: document.getElementById('cfg-kicker-it') as HTMLInputElement,
+    kickerEn: document.getElementById('cfg-kicker-en') as HTMLInputElement,
+    titleIt: document.getElementById('cfg-title-it') as HTMLInputElement,
+    titleEn: document.getElementById('cfg-title-en') as HTMLInputElement,
+    leadIt: document.getElementById('cfg-lead-it') as HTMLTextAreaElement,
+    leadEn: document.getElementById('cfg-lead-en') as HTMLTextAreaElement,
+    footerIt: document.getElementById('cfg-footer-it') as HTMLInputElement,
+    footerEn: document.getElementById('cfg-footer-en') as HTMLInputElement,
+  };
+
+  function showDesignBanner(msg: string, isError = false) {
+    designBanner.textContent = msg;
+    designBanner.classList.toggle('is-error', isError);
+    designBanner.hidden = false;
+  }
+
+  function applyLiveDesignPreview(cfg: any) {
+    const html = document.documentElement;
+    html.dataset.preset = cfg.theme.preset;
+    html.style.setProperty('--user-accent-light', cfg.theme.accentLight);
+    html.style.setProperty('--user-accent-dark', cfg.theme.accentDark);
+    const radMap: Record<string, [string, string]> = {
+      sharp: ['10px', '8px'],
+      ive: ['22px', '12px'],
+      soft: ['28px', '16px'],
+    };
+    const [cardR, ctrlR] = radMap[cfg.theme.radius] || radMap.ive;
+    html.style.setProperty('--radius-card', cardR);
+    html.style.setProperty('--radius-control', ctrlR);
+    html.style.setProperty(
+      '--font-heading',
+      cfg.theme.headingFont === 'serif' ? 'var(--font-serif)' : 'var(--font-display)'
+    );
+    html.style.setProperty(
+      '--font-prose',
+      cfg.theme.proseFont === 'serif' ? 'var(--font-serif)' : 'var(--font-sans)'
+    );
+
+    document.querySelectorAll('.preset-chip[data-preset-pick]').forEach((el) => {
+      el.classList.toggle('active', (el as HTMLElement).dataset.presetPick === cfg.theme.preset);
+    });
+  }
+
+  function populateDesignForm(cfg: any) {
+    cfgEl.accentLight.value = cfg.theme.accentLight;
+    cfgEl.accentLightHex.value = cfg.theme.accentLight;
+    cfgEl.accentDark.value = cfg.theme.accentDark;
+    cfgEl.accentDarkHex.value = cfg.theme.accentDark;
+    cfgEl.headingFont.value = cfg.theme.headingFont;
+    cfgEl.proseFont.value = cfg.theme.proseFont;
+    cfgEl.radius.value = cfg.theme.radius;
+    cfgEl.spacing.value = cfg.theme.spacing;
+    cfgEl.heroAlign.value = cfg.theme.heroAlign;
+    cfgEl.showBearing.checked = Boolean(cfg.theme.showBearingMark);
+    cfgEl.showPillars.checked = Boolean(cfg.hero.showPillars);
+
+    cfgEl.brandName.value = cfg.brand.name || '';
+    cfgEl.brandSubIt.value = cfg.brand.subtitleIt || '';
+    cfgEl.brandSubEn.value = cfg.brand.subtitleEn || '';
+    cfgEl.kickerIt.value = cfg.hero.kickerIt || '';
+    cfgEl.kickerEn.value = cfg.hero.kickerEn || '';
+    cfgEl.titleIt.value = cfg.hero.titleIt || '';
+    cfgEl.titleEn.value = cfg.hero.titleEn || '';
+    cfgEl.leadIt.value = cfg.hero.leadIt || '';
+    cfgEl.leadEn.value = cfg.hero.leadEn || '';
+    cfgEl.footerIt.value = cfg.footer.taglineIt || '';
+    cfgEl.footerEn.value = cfg.footer.taglineEn || '';
+    applyLiveDesignPreview(cfg);
+  }
+
+  function readDesignFormIntoConfig() {
+    currentSiteConfig = {
+      ...currentSiteConfig,
+      brand: {
+        ...currentSiteConfig.brand,
+        name: cfgEl.brandName.value.trim() || 'I Fratelli Cuscinetto',
+        subtitleIt: cfgEl.brandSubIt.value.trim(),
+        subtitleEn: cfgEl.brandSubEn.value.trim(),
+      },
+      theme: {
+        ...currentSiteConfig.theme,
+        accentLight: cfgEl.accentLightHex.value.trim() || '#0071e3',
+        accentDark: cfgEl.accentDarkHex.value.trim() || '#2997ff',
+        headingFont: cfgEl.headingFont.value,
+        proseFont: cfgEl.proseFont.value,
+        radius: cfgEl.radius.value,
+        spacing: cfgEl.spacing.value,
+        heroAlign: cfgEl.heroAlign.value,
+        showBearingMark: cfgEl.showBearing.checked,
+      },
+      hero: {
+        ...currentSiteConfig.hero,
+        kickerIt: cfgEl.kickerIt.value.trim(),
+        kickerEn: cfgEl.kickerEn.value.trim(),
+        titleIt: cfgEl.titleIt.value.trim(),
+        titleEn: cfgEl.titleEn.value.trim(),
+        leadIt: cfgEl.leadIt.value.trim(),
+        leadEn: cfgEl.leadEn.value.trim(),
+        showPillars: cfgEl.showPillars.checked,
+      },
+      footer: {
+        ...currentSiteConfig.footer,
+        taglineIt: cfgEl.footerIt.value.trim(),
+        taglineEn: cfgEl.footerEn.value.trim(),
+      },
+    };
+    applyLiveDesignPreview(currentSiteConfig);
+    return currentSiteConfig;
+  }
+
+  async function loadSiteConfigFromRepo() {
+    if (designLoadedFromRepo) return;
+    try {
+      if (backendMode === 'cloudflare') {
+        const res = await fetch(`${API_BASE}/site-config`);
+        if (res.ok) {
+          const data = await res.json();
+          currentSiteConfig = data.config;
+          siteConfigSha = data.sha;
+          designLoadedFromRepo = true;
+        }
+      } else if (ghCreds) {
+        const res = await ghApi(`/contents/src/data/site-config.json?ref=${encodeURIComponent(ghCreds.branch)}`);
+        if (res.ok) {
+          const file = await res.json();
+          currentSiteConfig = JSON.parse(base64ToUtf8(file.content || '{}'));
+          siteConfigSha = file.sha;
+          designLoadedFromRepo = true;
+        }
+      }
+    } catch {
+      // Usa initialConfig come fallback
+    }
+    populateDesignForm(currentSiteConfig);
+  }
+
+  async function saveSiteConfig() {
+    const cfg = readDesignFormIntoConfig();
+    saveDesignBtn.disabled = true;
+    saveDesignBtn.textContent = 'Salvataggio...';
+    designBanner.hidden = true;
+
+    try {
+      if (backendMode === 'cloudflare') {
+        const res = await fetch(`${API_BASE}/site-config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ config: cfg, sha: siteConfigSha || undefined }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Errore salvataggio design');
+        siteConfigSha = data.sha || siteConfigSha;
+      } else {
+        const path = 'src/data/site-config.json';
+        let sha = siteConfigSha;
+        if (!sha) {
+          const check = await ghApi(`/contents/${path}?ref=${encodeURIComponent(ghCreds!.branch)}`);
+          if (check.ok) sha = (await check.json()).sha;
+        }
+        const res = await ghApi(`/contents/${path}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: 'style: aggiorna design e testi sito (via admin)',
+            content: utf8ToBase64(`${JSON.stringify(cfg, null, 2)}\n`),
+            branch: ghCreds!.branch,
+            ...(sha ? { sha } : {}),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Errore commit config su GitHub');
+        siteConfigSha = data?.content?.sha || siteConfigSha;
+      }
+      showDesignBanner('Design e testi salvati su GitHub! Il sito si aggiornerà entro 1-2 minuti.');
+    } catch (err: any) {
+      showDesignBanner(err?.message || 'Errore durante il salvataggio.', true);
+    } finally {
+      saveDesignBtn.disabled = false;
+      saveDesignBtn.textContent = 'Salva design e pubblica';
+    }
+  }
+
+  studioTabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      studioTabs.forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+      const target = (tab as HTMLElement).dataset.studioTab;
+      const isDesign = target === 'design';
+      panelArticles.hidden = isDesign;
+      panelDesign.hidden = !isDesign;
+      if (isDesign) loadSiteConfigFromRepo();
+    });
+  });
+
+  document.querySelectorAll('.preset-chip[data-preset-pick]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const preset = (btn as HTMLElement).dataset.presetPick || 'alabaster';
+      const colors = PRESET_DEFAULTS[preset] || PRESET_DEFAULTS.alabaster;
+      currentSiteConfig.theme.preset = preset;
+      currentSiteConfig.theme.accentLight = colors.accentLight;
+      currentSiteConfig.theme.accentDark = colors.accentDark;
+      populateDesignForm(currentSiteConfig);
+    });
+  });
+
+  cfgEl.accentLight.addEventListener('input', () => {
+    cfgEl.accentLightHex.value = cfgEl.accentLight.value;
+    readDesignFormIntoConfig();
+  });
+  cfgEl.accentLightHex.addEventListener('input', () => {
+    if (/^#[0-9a-f]{6}$/i.test(cfgEl.accentLightHex.value)) {
+      cfgEl.accentLight.value = cfgEl.accentLightHex.value;
+      readDesignFormIntoConfig();
+    }
+  });
+  cfgEl.accentDark.addEventListener('input', () => {
+    cfgEl.accentDarkHex.value = cfgEl.accentDark.value;
+    readDesignFormIntoConfig();
+  });
+  cfgEl.accentDarkHex.addEventListener('input', () => {
+    if (/^#[0-9a-f]{6}$/i.test(cfgEl.accentDarkHex.value)) {
+      cfgEl.accentDark.value = cfgEl.accentDarkHex.value;
+      readDesignFormIntoConfig();
+    }
+  });
+
+  [cfgEl.headingFont, cfgEl.proseFont, cfgEl.radius, cfgEl.spacing, cfgEl.heroAlign, cfgEl.showBearing, cfgEl.showPillars].forEach(
+    (el) => el.addEventListener('change', readDesignFormIntoConfig)
+  );
+
+  saveDesignBtn.addEventListener('click', saveSiteConfig);
+  resetDesignBtn.addEventListener('click', () => {
+    currentSiteConfig.theme = {
+      preset: 'alabaster',
+      accentLight: '#0071e3',
+      accentDark: '#2997ff',
+      headingFont: 'sans',
+      proseFont: 'sans',
+      radius: 'ive',
+      spacing: 'airy',
+      heroAlign: 'center',
+      showBearingMark: true,
+    };
+    populateDesignForm(currentSiteConfig);
+  });
+
+  populateDesignForm(currentSiteConfig);
   initAdmin();
 </script>
 
@@ -1451,6 +1900,122 @@ const apiBase = withBase('/api/admin');
   .publish-buttons {
     display: flex;
     gap: 0.65rem;
+  }
+
+  .studio-tabs {
+    display: inline-flex;
+    padding: 0.22rem;
+    border-radius: 980px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+  }
+
+  .studio-tab {
+    padding: 0.35rem 0.9rem;
+    border: 0;
+    border-radius: 980px;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    font-size: 0.83rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s var(--ease-ive);
+  }
+
+  .studio-tab.active {
+    background: var(--bg-elevated);
+    color: var(--text);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  }
+
+  .design-panel-wrap {
+    padding-top: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .design-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .design-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 1.6rem;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .design-card h2 {
+    margin: 0 0 0.4rem;
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    letter-spacing: -0.02em;
+  }
+
+  .preset-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+    margin-top: 1rem;
+  }
+
+  .preset-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.7rem 0.85rem;
+    border-radius: var(--radius-control);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 0.84rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.2s var(--ease-ive);
+  }
+
+  .preset-chip.active,
+  .preset-chip:hover {
+    border-color: var(--accent);
+  }
+
+  .swatch-pair {
+    display: inline-flex;
+    gap: 3px;
+  }
+
+  .swatch-pair i {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid var(--border-strong);
+    display: inline-block;
+  }
+
+  .color-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .color-row input[type='color'] {
+    width: 40px;
+    height: 38px;
+    padding: 2px;
+    cursor: pointer;
+  }
+
+  .color-row input[type='text'] {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-mono);
   }
 
   @media (max-width: 980px) {

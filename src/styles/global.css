@@ -1,50 +1,91 @@
 :root {
-  --bg: #fafaf7;
+  /* Default: Alabaster Titanium (Jony Ive / Apple industrial clarity) */
+  --bg: #f5f5f7;
   --bg-elevated: #ffffff;
-  --bg-subtle: #f1efe9;
-  --text: #14171c;
-  --text-muted: #525866;
-  --border: #e2dfd7;
-  --border-strong: #cbc6ba;
+  --bg-subtle: #ebebf0;
+  --bg-glass: rgba(245, 245, 247, 0.76);
+  --text: #1d1d1f;
+  --text-muted: #6e6e73;
+  --border: rgba(29, 29, 31, 0.08);
+  --border-strong: rgba(29, 29, 31, 0.18);
+  --specular: rgba(255, 255, 255, 0.8);
 
-  --accent: #c85a17;
-  --accent-soft: rgba(200, 90, 23, 0.1);
-  --accent-ai: #1d4ed8;
-  --accent-ai-soft: rgba(29, 78, 216, 0.1);
+  --user-accent-light: #0071e3;
+  --user-accent-dark: #2997ff;
+  --accent: var(--user-accent-light);
+  --accent-soft: color-mix(in srgb, var(--accent) 11%, transparent);
+  --accent-ai: var(--accent);
+  --accent-ai-soft: var(--accent-soft);
   --accent-hybrid: #0f766e;
   --accent-hybrid-soft: rgba(15, 118, 110, 0.1);
 
-  --grid-line: rgba(20, 23, 28, 0.045);
-  --shadow-sm: 0 1px 2px rgba(16, 20, 28, 0.05);
-  --shadow-md: 0 10px 30px rgba(16, 20, 28, 0.06);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.03), 0 4px 16px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.04), 0 18px 40px rgba(0, 0, 0, 0.07);
 
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', Roboto, sans-serif;
   --font-serif: 'Source Serif 4', Georgia, Cambria, serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-mono: 'SF Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  --max-width: 1120px;
-  --measure: 72ch;
+  --font-heading: var(--font-display);
+  --font-prose: var(--font-sans);
+
+  --radius-card: 22px;
+  --radius-control: 12px;
+  --hero-pad-y: clamp(4.5rem, 10vw, 7.5rem);
+  --section-gap: 3.5rem;
+  --ease-ive: cubic-bezier(0.25, 0.1, 0.25, 1);
+
+  --max-width: 1080px;
+  --measure: 68ch;
 }
 
-html.dark {
-  --bg: #0d1015;
-  --bg-elevated: #141922;
-  --bg-subtle: #1a212d;
-  --text: #edf0f5;
-  --text-muted: #98a2b3;
-  --border: #252e3d;
-  --border-strong: #364154;
+/* Preset: Warm Ceramic (LoveFrom paper warmth) */
+html[data-preset='ceramic']:not(.dark) {
+  --bg: #f6f4ef;
+  --bg-elevated: #fffefa;
+  --bg-subtle: #ebe7de;
+  --bg-glass: rgba(246, 244, 239, 0.78);
+  --text: #1b1a18;
+  --text-muted: #68645c;
+  --border: rgba(27, 26, 24, 0.09);
+  --border-strong: rgba(27, 26, 24, 0.18);
+}
 
-  --accent: #f0883e;
-  --accent-soft: rgba(240, 136, 62, 0.14);
-  --accent-ai: #60a5fa;
-  --accent-ai-soft: rgba(96, 165, 250, 0.14);
-  --accent-hybrid: #2dd4bf;
-  --accent-hybrid-soft: rgba(45, 212, 191, 0.14);
+/* Preset: Cool Graphite Titanium */
+html[data-preset='graphite']:not(.dark) {
+  --bg: #eef0f4;
+  --bg-elevated: #ffffff;
+  --bg-subtle: #e2e6ed;
+  --bg-glass: rgba(238, 240, 244, 0.78);
+  --text: #111318;
+  --text-muted: #5c6370;
+  --border: rgba(17, 19, 24, 0.08);
+  --border-strong: rgba(17, 19, 24, 0.18);
+}
 
-  --grid-line: rgba(237, 240, 245, 0.04);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.35);
+/* Dark mode & Obsidian preset (Anodized Space Black) */
+html.dark,
+html[data-preset='obsidian'] {
+  --bg: #000000;
+  --bg-elevated: #111113;
+  --bg-subtle: #1c1c1f;
+  --bg-glass: rgba(10, 10, 12, 0.74);
+  --text: #f5f5f7;
+  --text-muted: #86868b;
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --specular: rgba(255, 255, 255, 0.06);
+
+  --accent: var(--user-accent-dark);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-ai: var(--accent);
+  --accent-ai-soft: var(--accent-soft);
+  --accent-hybrid: #30d158;
+  --accent-hybrid-soft: rgba(48, 209, 88, 0.14);
+
+  --shadow-sm: 0 1px 0 var(--specular) inset, 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 1px 0 rgba(255, 255, 255, 0.09) inset, 0 22px 48px rgba(0, 0, 0, 0.65);
 }
 
 *,
@@ -56,6 +97,7 @@ html.dark {
 html {
   scroll-behavior: smooth;
   font-size: 16px;
+  text-rendering: optimizeLegibility;
 }
 
 body {
@@ -65,7 +107,8 @@ body {
   color: var(--text);
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s var(--ease-ive), color 0.3s var(--ease-ive);
 }
 
 a {
@@ -83,24 +126,26 @@ svg {
   width: 100%;
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: 0 1.25rem;
+  padding: 0 1.5rem;
 }
 
-/* Blueprint engineering grid utility */
+/* Subtle anodized aluminum ambient sheen (replaces busy blueprint grid) */
 .engineering-grid {
-  background-image:
-    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
-  background-size: 32px 32px;
+  background: radial-gradient(
+    ellipse 80% 55% at 50% -10%,
+    color-mix(in srgb, var(--accent) 7%, transparent),
+    transparent 70%
+  );
 }
 
-/* Header */
+/* Frosted glass header */
 .site-header {
   position: sticky;
   top: 0;
   z-index: 40;
-  backdrop-filter: blur(12px);
-  background-color: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  background-color: var(--bg-glass);
   border-bottom: 1px solid var(--border);
 }
 
@@ -109,26 +154,27 @@ svg {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  height: 68px;
+  height: 56px;
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  gap: 0.65rem;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  letter-spacing: -0.025em;
 }
 
 .brand-mark {
-  width: 34px;
-  height: 34px;
-  color: var(--accent);
-  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  width: 26px;
+  height: 26px;
+  color: var(--text);
+  transition: transform 0.7s var(--ease-ive);
 }
 
 .brand:hover .brand-mark {
-  transform: rotate(90deg);
+  transform: rotate(60deg);
 }
 
 .brand-text {
@@ -138,30 +184,31 @@ svg {
 }
 
 .brand-title {
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: 0.96rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .brand-sub {
-  font-family: var(--font-mono);
   font-size: 0.68rem;
   color: var(--text-muted);
-  font-weight: 500;
+  font-weight: 400;
+  letter-spacing: 0.01em;
 }
 
 .nav-group {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.25rem;
 }
 
 .nav-link {
-  padding: 0.45rem 0.75rem;
-  border-radius: 8px;
-  font-size: 0.92rem;
-  font-weight: 500;
+  padding: 0.36rem 0.72rem;
+  border-radius: 980px;
+  font-size: 0.84rem;
+  font-weight: 450;
   color: var(--text-muted);
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition: color 0.2s var(--ease-ive), background-color 0.2s var(--ease-ive);
 }
 
 .nav-link:hover,
@@ -174,46 +221,47 @@ svg {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   margin-left: 0.35rem;
-  border-radius: 10px;
+  border-radius: 980px;
   border: 1px solid var(--border);
   background: var(--bg-elevated);
-  color: var(--text);
+  color: var(--text-muted);
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: color 0.2s var(--ease-ive), border-color 0.2s var(--ease-ive), transform 0.2s var(--ease-ive);
 }
 
 .theme-toggle:hover {
+  color: var(--text);
   border-color: var(--border-strong);
-  background: var(--bg-subtle);
 }
 
-html.dark .icon-sun {
+html.dark .icon-sun,
+html[data-preset='obsidian'] .icon-sun {
   display: block;
 }
-html.dark .icon-moon {
+html.dark .icon-moon,
+html[data-preset='obsidian'] .icon-moon {
   display: none;
 }
-html:not(.dark) .icon-sun {
+html:not(.dark):not([data-preset='obsidian']) .icon-sun {
   display: none;
 }
-html:not(.dark) .icon-moon {
+html:not(.dark):not([data-preset='obsidian']) .icon-moon {
   display: block;
 }
 
-/* Badges */
+/* Quiet refined badges */
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.22rem 0.6rem;
-  border-radius: 999px;
-  font-family: var(--font-mono);
+  padding: 0.2rem 0.62rem;
+  border-radius: 980px;
   font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-weight: 500;
+  letter-spacing: 0.005em;
 }
 
 .badge-mech {
@@ -233,17 +281,17 @@ html:not(.dark) .icon-moon {
 
 .badge-level {
   color: var(--text-muted);
-  background: var(--bg-subtle);
+  background: transparent;
   border: 1px solid var(--border);
 }
 
-/* Footer */
+/* Minimal footer */
 .site-footer {
-  margin-top: 5rem;
+  margin-top: 6rem;
   border-top: 1px solid var(--border);
-  padding: 2.5rem 0;
+  padding: 2.75rem 0 3.25rem;
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: 0.84rem;
 }
 
 .footer-inner {
@@ -251,14 +299,17 @@ html:not(.dark) .icon-moon {
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .footer-links {
   display: flex;
-  gap: 1.25rem;
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
+  gap: 1.5rem;
+  font-size: 0.82rem;
+}
+
+.footer-links a {
+  transition: color 0.2s var(--ease-ive);
 }
 
 .footer-links a:hover {
@@ -267,67 +318,77 @@ html:not(.dark) .icon-moon {
 
 /* Shiki dual theme support */
 html.dark .astro-code,
-html.dark .astro-code span {
+html.dark .astro-code span,
+html[data-preset='obsidian'] .astro-code,
+html[data-preset='obsidian'] .astro-code span {
   color: var(--shiki-dark) !important;
   background-color: var(--shiki-dark-bg) !important;
 }
 
-/* Article Prose */
+/* Article Prose — serene, machined editorial typography */
 .prose {
   max-width: var(--measure);
-  font-family: var(--font-serif);
-  font-size: 1.125rem;
-  line-height: 1.78;
+  font-family: var(--font-prose);
+  font-size: 1.08rem;
+  line-height: 1.8;
+  color: var(--text);
 }
 
 .prose h2,
 .prose h3,
 .prose h4 {
-  font-family: var(--font-sans);
-  letter-spacing: -0.02em;
-  line-height: 1.28;
-  margin-top: 2.25em;
-  margin-bottom: 0.7em;
-  scroll-margin-top: 88px;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.24;
+  margin-top: 2.5em;
+  margin-bottom: 0.75em;
+  scroll-margin-top: 84px;
+  text-wrap: balance;
 }
 
 .prose h2 {
-  font-size: 1.6rem;
-  padding-bottom: 0.35rem;
+  font-size: 1.65rem;
+  padding-bottom: 0.45rem;
   border-bottom: 1px solid var(--border);
 }
 
 .prose h3 {
-  font-size: 1.26rem;
+  font-size: 1.28rem;
 }
 
 .prose p {
-  margin: 0 0 1.25em;
+  margin: 0 0 1.35em;
 }
 
 .prose a {
   color: var(--accent);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  transition: border-color 0.2s var(--ease-ive);
+}
+
+.prose a:hover {
+  border-bottom-color: var(--accent);
 }
 
 .prose ul,
 .prose ol {
-  margin: 0 0 1.3em;
-  padding-left: 1.4em;
+  margin: 0 0 1.4em;
+  padding-left: 1.35em;
 }
 
 .prose li {
-  margin-bottom: 0.45em;
+  margin-bottom: 0.5em;
 }
 
 .prose blockquote {
-  margin: 1.6em 0;
-  padding: 0.9rem 1.2rem;
-  border-left: 3px solid var(--accent);
-  background: var(--bg-subtle);
-  border-radius: 0 10px 10px 0;
-  font-family: var(--font-sans);
+  margin: 2em 0;
+  padding: 1.1rem 1.35rem;
+  border-left: 2px solid var(--accent);
+  background: var(--bg-elevated);
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  box-shadow: var(--shadow-sm);
   font-size: 0.98rem;
   color: var(--text);
 }
@@ -338,22 +399,22 @@ html.dark .astro-code span {
 
 .prose code {
   font-family: var(--font-mono);
-  font-size: 0.86em;
+  font-size: 0.85em;
   background: var(--bg-subtle);
-  padding: 0.15em 0.4em;
+  padding: 0.14em 0.42em;
   border-radius: 6px;
-  border: 1px solid var(--border);
 }
 
 .prose pre {
   position: relative;
-  margin: 1.6em 0;
-  padding: 1.15rem 1.25rem;
-  border-radius: 12px;
+  margin: 1.85em 0;
+  padding: 1.25rem 1.35rem;
+  border-radius: var(--radius-control);
   border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
   overflow-x: auto;
-  font-size: 0.88rem;
-  line-height: 1.55;
+  font-size: 0.86rem;
+  line-height: 1.6;
 }
 
 .prose pre code {
@@ -363,55 +424,69 @@ html.dark .astro-code span {
   font-size: inherit;
 }
 
+.prose img {
+  border-radius: var(--radius-control);
+  margin: 1.75em auto;
+  box-shadow: var(--shadow-sm);
+}
+
 .prose table {
   width: 100%;
   border-collapse: collapse;
-  margin: 1.6em 0;
+  margin: 1.85em 0;
   font-family: var(--font-sans);
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   display: block;
   overflow-x: auto;
 }
 
 .prose th,
 .prose td {
-  padding: 0.65rem 0.85rem;
-  border: 1px solid var(--border);
+  padding: 0.7rem 0.95rem;
+  border-bottom: 1px solid var(--border);
   text-align: left;
 }
 
 .prose th {
-  background: var(--bg-subtle);
+  color: var(--text-muted);
   font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .prose .katex-display {
-  margin: 1.5em 0;
-  padding: 0.75rem 1rem;
+  margin: 1.75em 0;
+  padding: 1rem 1.25rem;
   overflow-x: auto;
   overflow-y: hidden;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-sm);
 }
 
 @media (max-width: 640px) {
+  .container {
+    padding: 0 1.15rem;
+  }
+
   .prose h2,
   .prose h3,
   .prose h4 {
-    scroll-margin-top: 128px;
+    scroll-margin-top: 112px;
   }
 
   .header-inner {
     height: auto;
-    min-height: 68px;
+    min-height: 56px;
     flex-wrap: wrap;
-    padding-top: 0.55rem;
-    padding-bottom: 0.55rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
   }
 
   .brand-title {
-    font-size: 0.92rem;
+    font-size: 0.9rem;
   }
 
   .brand-sub {
@@ -425,8 +500,8 @@ html.dark .astro-code span {
   }
 
   .nav-link {
-    padding: 0.4rem 0.55rem;
-    font-size: 0.84rem;
+    padding: 0.35rem 0.55rem;
+    font-size: 0.82rem;
   }
 
   .theme-toggle {
@@ -435,16 +510,7 @@ html.dark .astro-code span {
   }
 
   .prose {
-    font-size: 1.03rem;
-  }
-
-  .prose table {
-    font-size: 0.82rem;
-  }
-
-  .prose th,
-  .prose td {
-    padding: 0.5rem 0.6rem;
+    font-size: 1.02rem;
   }
 
   .footer-inner {
@@ -453,5 +519,6 @@ html.dark .astro-code span {
 
   .footer-links {
     flex-wrap: wrap;
+    gap: 1rem;
   }
 }
