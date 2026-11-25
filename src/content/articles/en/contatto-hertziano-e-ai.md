@@ -7,6 +7,7 @@ author: "marco"
 category: "Meccatronica & Hybrid"
 tags: ["bearings", "tribology", "predictive-maintenance", "fft"]
 level: "Tecnico / Avanzato"
+sourceHash: "6eb41b664b95d658"
 ---
 
 We couldn't launch this site without talking about the component behind our name: the **rolling-element bearing**. It may seem simple until you start calculating what happens in the microscopic contact patch between a ball and its raceway.

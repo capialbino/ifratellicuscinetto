@@ -7,6 +7,7 @@ author: "luca"
 category: "Meccanica"
 tags: ["tolerances", "cad", "design", "workshop"]
 level: "Intermedio"
+sourceHash: "c5beb22bd85bc495"
 ---
 
 In CAD, two cylinders with a nominal diameter of $\varnothing 30\,\text{mm}$ always fit together perfectly. Then you send the drawing to the workshop, get the parts back, and discover that the shaft either wobbles in the bore or won't go in even with a hammer.

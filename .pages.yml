@@ -1,0 +1,69 @@
+media:
+  input: public/uploads
+  output: /uploads
+
+content:
+  - name: articles-it
+    label: Articoli (Italiano)
+    type: collection
+    path: src/content/articles
+    exclude:
+      - en/**
+    view:
+      fields: [title, author, category, pubDate, draft]
+    fields:
+      - name: language
+        label: Lingua
+        type: string
+        hidden: true
+        default: it
+      - name: title
+        label: Titolo
+        type: string
+        required: true
+      - name: description
+        label: Descrizione breve
+        type: text
+        required: true
+      - name: pubDate
+        label: Data pubblicazione
+        type: date
+        required: true
+      - name: author
+        label: Autore
+        type: select
+        required: true
+        options:
+          values:
+            - { value: marco, label: Federico Pappafava }
+            - { value: luca, label: Alessandro Rossi }
+            - { value: alessandro, label: Alessandro Capialbi }
+      - name: category
+        label: Categoria
+        type: select
+        required: true
+        options:
+          values:
+            - { value: Meccanica, label: Meccanica }
+            - { value: "AI & Software", label: "AI & Software" }
+            - { value: "Meccatronica & Hybrid", label: "Meccanica × AI" }
+      - name: level
+        label: Livello tecnico
+        type: select
+        default: Intermedio
+        options:
+          values:
+            - Divulgativo
+            - Intermedio
+            - "Tecnico / Avanzato"
+      - name: tags
+        label: Tag
+        type: string
+        list: true
+      - name: draft
+        label: Bozza
+        type: boolean
+        default: false
+      - name: body
+        label: Contenuto (Markdown + LaTeX)
+        type: rich-text

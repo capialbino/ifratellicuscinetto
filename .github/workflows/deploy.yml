@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -15,16 +15,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  translate_and_build:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Auto-translate Italian articles to English
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
+        run: node scripts/translate-articles.mjs
+
+      - name: Commit generated English translations
+        run: |
+          if [ -n "$(git status --porcelain src/content/articles/en)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/content/articles/en
+            git commit -m "chore: traduzione automatica articoli in inglese"
+            git push
+          fi
+
       - name: Build Astro site
         uses: withastro/action@v6
 
   deploy:
-    needs: build
+    needs: translate_and_build
     runs-on: ubuntu-latest
     environment:
       name: github-pages

@@ -112,6 +112,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site ?? 'https://ifratell
           <a href={withBase(locale === 'it' ? '/' : '/en/')}>{locale === 'it' ? 'Articoli' : 'Articles'}</a>
           <a href={withBase(locale === 'it' ? '/chi-siamo' : '/en/about')}>{locale === 'it' ? 'Team' : 'Team'}</a>
           <a href={withBase('/rss.xml')}>RSS</a>
+          <a href={withBase('/admin')}>Admin</a>
         </div>
       </div>
     </footer>

@@ -1,0 +1,1474 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { AUTHORS } from '../data/authors';
+import { withBase } from '../utils/paths';
+
+const authorsList = Object.values(AUTHORS);
+const apiBase = withBase('/api/admin');
+---
+
+<BaseLayout
+  title="Area Redazione — I Fratelli Cuscinetto"
+  description="Pannello editoriale per scrivere, visualizzare in anteprima e pubblicare articoli."
+  locale="it"
+>
+  <div id="admin-root" class="admin-shell" data-api-base={apiBase}>
+    <!-- Login View -->
+    <section id="login-view" class="container login-wrap">
+      <div class="login-card">
+        <div class="login-head">
+          <span class="badge badge-hybrid">Area Redazione</span>
+          <h1>Scrivi e pubblica un articolo</h1>
+          <p id="mode-subtitle" class="muted">
+            Verifica modalità di pubblicazione in corso...
+          </p>
+        </div>
+
+        <div id="mode-alert" class="info-banner" hidden></div>
+
+        <!-- Cloudflare Password Login -->
+        <form id="cf-login-form" class="login-form" hidden>
+          <label class="field">
+            <span>Chi sta scrivendo?</span>
+            <select id="login-author" required>
+              {authorsList.map((a) => (
+                <option value={a.id}>{a.name} — {a.role}</option>
+              ))}
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Password redazione</span>
+            <input
+              id="login-password"
+              type="password"
+              placeholder="Inserisci la password"
+              autocomplete="current-password"
+              required
+            />
+          </label>
+
+          <button type="submit" class="btn btn-primary" id="cf-login-btn">
+            Entra in redazione
+          </button>
+        </form>
+
+        <!-- GitHub Direct Mode Fallback (usato su GitHub Pages statico) -->
+        <form id="gh-login-form" class="login-form" hidden>
+          <label class="field">
+            <span>Chi sta scrivendo?</span>
+            <select id="gh-author" required>
+              {authorsList.map((a) => (
+                <option value={a.id}>{a.name} — {a.role}</option>
+              ))}
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Repository GitHub</span>
+            <input
+              id="gh-repo"
+              type="text"
+              value="capialbino/ifratellicuscinetto"
+              required
+            />
+          </label>
+
+          <label class="field">
+            <span>GitHub Fine-Grained Token (permesso Contents: Read &amp; Write)</span>
+            <input
+              id="gh-token"
+              type="password"
+              placeholder="github_pat_..."
+              required
+            />
+          </label>
+
+          <label class="checkbox-inline">
+            <input id="gh-remember" type="checkbox" />
+            <span>Ricorda il token su questo browser</span>
+          </label>
+
+          <button type="submit" class="btn btn-primary">
+            Accedi con GitHub Token
+          </button>
+        </form>
+
+        <div id="login-error" class="error-box" hidden></div>
+      </div>
+    </section>
+
+    <!-- Studio View -->
+    <section id="studio-view" class="studio-wrap" hidden>
+      <div class="studio-topbar">
+        <div class="container studio-topbar-inner">
+          <div class="studio-status">
+            <span class="badge badge-hybrid" id="studio-mode-badge">Cloudflare Admin</span>
+            <span id="studio-user-label" class="muted"></span>
+          </div>
+
+          <div class="studio-actions">
+            <button type="button" id="new-article-btn" class="btn btn-secondary">
+              + Nuovo articolo
+            </button>
+            <button type="button" id="logout-btn" class="btn btn-ghost">
+              Esci
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="container studio-grid">
+        <!-- Sidebar elenco articoli -->
+        <aside class="articles-sidebar">
+          <div class="sidebar-header">
+            <h2>Articoli (<span id="articles-count">0</span>)</h2>
+            <button type="button" id="refresh-list-btn" class="btn-icon" title="Aggiorna elenco">
+              ↻
+            </button>
+          </div>
+          <div id="articles-list" class="articles-list">
+            <div class="muted small">Caricamento articoli...</div>
+          </div>
+        </aside>
+
+        <!-- Editor principale -->
+        <div class="editor-panel">
+          <div id="save-banner" class="toast-banner" hidden></div>
+
+          <div class="meta-grid">
+            <label class="field field-wide">
+              <span>Titolo articolo *</span>
+              <input
+                id="art-title"
+                type="text"
+                placeholder="Es. Come funzionano i cuscinetti magnetici attivi"
+                required
+              />
+            </label>
+
+            <label class="field">
+              <span>Slug URL *</span>
+              <input
+                id="art-slug"
+                type="text"
+                placeholder="cuscinetti-magnetici-attivi"
+                required
+              />
+            </label>
+
+            <label class="field">
+              <span>Autore *</span>
+              <select id="art-author">
+                {authorsList.map((a) => (
+                  <option value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Categoria *</span>
+              <select id="art-category">
+                <option value="Meccatronica & Hybrid">Meccanica × AI</option>
+                <option value="Meccanica">Meccanica</option>
+                <option value="AI & Software">AI &amp; Software</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Livello tecnico</span>
+              <select id="art-level">
+                <option value="Divulgativo">Divulgativo</option>
+                <option value="Intermedio" selected>Intermedio</option>
+                <option value="Tecnico / Avanzato">Tecnico / Avanzato</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Data pubblicazione</span>
+              <input id="art-date" type="date" />
+            </label>
+
+            <label class="field">
+              <span>Tag (separati da virgola)</span>
+              <input id="art-tags" type="text" placeholder="cuscinetti, controllo, ai" />
+            </label>
+
+            <label class="field field-wide">
+              <span>Riassunto / Descrizione SEO *</span>
+              <textarea
+                id="art-desc"
+                rows="2"
+                placeholder="Breve descrizione di 1-2 righe che compare nella home e nei motori di ricerca."
+              ></textarea>
+            </label>
+          </div>
+
+          <!-- Toolbar & Preview switcher -->
+          <div class="editor-toolbar-wrap">
+            <div class="format-toolbar" role="toolbar" aria-label="Strumenti di formattazione">
+              <button type="button" class="tb-btn" data-insert="h2" title="Titolo sezione">H2</button>
+              <button type="button" class="tb-btn" data-insert="h3" title="Sottotitolo">H3</button>
+              <button type="button" class="tb-btn" data-insert="bold" title="Grassetto"><strong>B</strong></button>
+              <button type="button" class="tb-btn" data-insert="italic" title="Corsivo"><em>I</em></button>
+              <button type="button" class="tb-btn" data-insert="list" title="Elenco puntato">• Elenco</button>
+              <button type="button" class="tb-btn" data-insert="quote" title="Nota / Citazione">❝ Nota</button>
+              <button type="button" class="tb-btn" data-insert="link" title="Link">🔗 Link</button>
+              <button type="button" class="tb-btn" data-insert="code" title="Blocco codice">{`</>`}</button>
+              <button type="button" class="tb-btn" data-insert="math-inline" title="Formula inline">$x$</button>
+              <button type="button" class="tb-btn" data-insert="math-block" title="Formula centrata">$$ ∑ $$</button>
+              <button type="button" class="tb-btn" data-insert="table" title="Tabella">⊞ Tabella</button>
+              <label class="tb-btn tb-upload" title="Carica immagine dal PC">
+                🖼 Immagine
+                <input id="image-upload-input" type="file" accept="image/*" hidden />
+              </label>
+            </div>
+
+            <div class="view-tabs" role="tablist">
+              <button type="button" class="view-tab active" data-view="split">Diviso</button>
+              <button type="button" class="view-tab" data-view="write">Scrivi</button>
+              <button type="button" class="view-tab" data-view="preview">Anteprima</button>
+            </div>
+          </div>
+
+          <div id="workspace-panes" class="workspace-panes view-split">
+            <textarea
+              id="art-body"
+              class="markdown-input"
+              placeholder="Scrivi qui l'articolo in italiano...&#10;&#10;Suggerimento: usa i pulsanti qui sopra per titoli, formule matematiche ($...$ o $$...$$), codice e immagini. Quando pubblichi, la versione inglese verrà generata in automatico!"
+            ></textarea>
+
+            <div id="live-preview" class="preview-pane prose"></div>
+          </div>
+
+          <div class="publish-bar">
+            <label class="checkbox-inline">
+              <input id="art-draft" type="checkbox" />
+              <span>Salva come bozza (non visibile ai lettori)</span>
+            </label>
+
+            <div class="publish-buttons">
+              <button type="button" id="delete-btn" class="btn btn-danger" hidden>
+                Elimina
+              </button>
+              <button type="button" id="publish-btn" class="btn btn-primary">
+                Pubblica articolo
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</BaseLayout>
+
+<script>
+  import { marked } from 'marked';
+  import katex from 'katex';
+
+  marked.setOptions({ gfm: true, breaks: false });
+
+  const root = document.getElementById('admin-root');
+  const API_BASE = root?.dataset.apiBase || '/api/admin';
+
+  const AUTHOR_NAMES: Record<string, string> = {
+    marco: 'Federico Pappafava',
+    luca: 'Alessandro Rossi',
+    alessandro: 'Alessandro Capialbi',
+  };
+
+  // Elements
+  const loginView = document.getElementById('login-view')!;
+  const studioView = document.getElementById('studio-view')!;
+  const modeSubtitle = document.getElementById('mode-subtitle')!;
+  const modeAlert = document.getElementById('mode-alert')!;
+  const cfLoginForm = document.getElementById('cf-login-form') as HTMLFormElement;
+  const ghLoginForm = document.getElementById('gh-login-form') as HTMLFormElement;
+  const loginError = document.getElementById('login-error')!;
+
+  const studioModeBadge = document.getElementById('studio-mode-badge')!;
+  const studioUserLabel = document.getElementById('studio-user-label')!;
+  const articlesListEl = document.getElementById('articles-list')!;
+  const articlesCountEl = document.getElementById('articles-count')!;
+  const saveBanner = document.getElementById('save-banner')!;
+
+  const titleInput = document.getElementById('art-title') as HTMLInputElement;
+  const slugInput = document.getElementById('art-slug') as HTMLInputElement;
+  const authorSelect = document.getElementById('art-author') as HTMLSelectElement;
+  const categorySelect = document.getElementById('art-category') as HTMLSelectElement;
+  const levelSelect = document.getElementById('art-level') as HTMLSelectElement;
+  const dateInput = document.getElementById('art-date') as HTMLInputElement;
+  const tagsInput = document.getElementById('art-tags') as HTMLInputElement;
+  const descInput = document.getElementById('art-desc') as HTMLTextAreaElement;
+  const bodyInput = document.getElementById('art-body') as HTMLTextAreaElement;
+  const draftCheckbox = document.getElementById('art-draft') as HTMLInputElement;
+  const livePreviewEl = document.getElementById('live-preview')!;
+  const workspacePanes = document.getElementById('workspace-panes')!;
+  const publishBtn = document.getElementById('publish-btn') as HTMLButtonElement;
+  const deleteBtn = document.getElementById('delete-btn') as HTMLButtonElement;
+  const imageUploadInput = document.getElementById('image-upload-input') as HTMLInputElement;
+
+  interface ArticleRecord {
+    slug: string;
+    path: string;
+    sha: string;
+    hasEnglish: boolean;
+    frontmatter: {
+      title: string;
+      description: string;
+      pubDate: string;
+      author: string;
+      category: string;
+      tags: string[];
+      level: string;
+      draft: boolean;
+    };
+    body: string;
+  }
+
+  let backendMode: 'cloudflare' | 'github-direct' = 'cloudflare';
+  let currentAuthor = 'alessandro';
+  let ghCreds: { token: string; repo: string; branch: string } | null = null;
+  let articlesCache: ArticleRecord[] = [];
+  let editingSlug: string | null = null;
+  let editingSha: string | null = null;
+  let slugManuallyEdited = false;
+
+  function showError(msg: string) {
+    loginError.textContent = msg;
+    loginError.hidden = false;
+  }
+
+  function clearError() {
+    loginError.hidden = true;
+    loginError.textContent = '';
+  }
+
+  function showBanner(msg: string, isError = false) {
+    saveBanner.textContent = msg;
+    saveBanner.classList.toggle('is-error', isError);
+    saveBanner.hidden = false;
+  }
+
+  function hideBanner() {
+    saveBanner.hidden = true;
+  }
+
+  function slugify(str: string): string {
+    return str
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 90);
+  }
+
+  function utf8ToBase64(text: string): string {
+    const bytes = new TextEncoder().encode(text);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    }
+    return btoa(binary);
+  }
+
+  function base64ToUtf8(b64: string): string {
+    const binary = atob(b64.replace(/\s+/g, ''));
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+
+  function parseMarkdownFrontmatter(raw: string) {
+    const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+    if (!m) return { frontmatter: {} as Record<string, unknown>, body: raw };
+    const fm: Record<string, unknown> = {};
+    for (const line of m[1].split(/\r?\n/)) {
+      const idx = line.indexOf(':');
+      if (idx <= 0) continue;
+      const k = line.slice(0, idx).trim();
+      const v = line.slice(idx + 1).trim();
+      if (v === 'true') fm[k] = true;
+      else if (v === 'false') fm[k] = false;
+      else if (v.startsWith('[') && v.endsWith(']')) {
+        try {
+          fm[k] = JSON.parse(v);
+        } catch {
+          fm[k] = [];
+        }
+      } else if (v.startsWith('"') && v.endsWith('"')) {
+        try {
+          fm[k] = JSON.parse(v);
+        } catch {
+          fm[k] = v.slice(1, -1);
+        }
+      } else {
+        fm[k] = v.replace(/^'|'$/g, '');
+      }
+    }
+    return { frontmatter: fm, body: m[2].replace(/^\r?\n/, '') };
+  }
+
+  function serializeMarkdown(data: {
+    title: string;
+    description: string;
+    pubDate: string;
+    author: string;
+    category: string;
+    tags: string[];
+    level: string;
+    draft: boolean;
+    body: string;
+  }) {
+    return [
+      '---',
+      'language: "it"',
+      `title: ${JSON.stringify(data.title)}`,
+      `description: ${JSON.stringify(data.description)}`,
+      `pubDate: ${data.pubDate}`,
+      `author: ${JSON.stringify(data.author)}`,
+      `category: ${JSON.stringify(data.category)}`,
+      `tags: ${JSON.stringify(data.tags)}`,
+      `level: ${JSON.stringify(data.level)}`,
+      `draft: ${data.draft ? 'true' : 'false'}`,
+      '---',
+      '',
+      data.body.trim(),
+      '',
+    ].join('\n');
+  }
+
+  function renderPreview() {
+    const raw = bodyInput.value || '';
+    const mathTokens: string[] = [];
+
+    // Protegge blocchi di codice da sostituzioni LaTeX
+    const codeTokens: string[] = [];
+    let safe = raw.replace(/```[\s\S]*?```/g, (block) => {
+      const id = codeTokens.push(block) - 1;
+      return `@@CODE_BLOCK_${id}@@`;
+    });
+
+    // Render $$...$$ display math
+    safe = safe.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => {
+      try {
+        const html = katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false });
+        const id = mathTokens.push(html) - 1;
+        return `\n\n<div class="katex-preview-block">@@MATH_${id}@@</div>\n\n`;
+      } catch {
+        return _;
+      }
+    });
+
+    // Render $...$ inline math
+    safe = safe.replace(/(^|[^\\$])\$([^\n$]+?)\$/g, (full, prefix, tex) => {
+      try {
+        const html = katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false });
+        const id = mathTokens.push(html) - 1;
+        return `${prefix}@@MATH_${id}@@`;
+      } catch {
+        return full;
+      }
+    });
+
+    // Ripristina i blocchi di codice prima di marked
+    safe = safe.replace(/@@CODE_BLOCK_(\d+)@@/g, (_, idx) => codeTokens[Number(idx)] || '');
+
+    let html = marked.parse(safe) as string;
+    html = html.replace(/@@MATH_(\d+)@@/g, (_, idx) => mathTokens[Number(idx)] || '');
+
+    livePreviewEl.innerHTML = html || '<p class="muted">L’anteprima apparirà qui mentre scrivi...</p>';
+  }
+
+  function resetFormForNew() {
+    editingSlug = null;
+    editingSha = null;
+    slugManuallyEdited = false;
+    titleInput.value = '';
+    slugInput.value = '';
+    slugInput.disabled = false;
+    authorSelect.value = currentAuthor;
+    categorySelect.value = 'Meccatronica & Hybrid';
+    levelSelect.value = 'Intermedio';
+    dateInput.value = new Date().toISOString().slice(0, 10);
+    tagsInput.value = '';
+    descInput.value = '';
+    bodyInput.value = '';
+    draftCheckbox.checked = false;
+    publishBtn.textContent = 'Pubblica articolo';
+    deleteBtn.hidden = true;
+    hideBanner();
+    renderArticlesList();
+    renderPreview();
+  }
+
+  function loadArticleIntoForm(art: ArticleRecord) {
+    editingSlug = art.slug;
+    editingSha = art.sha;
+    slugManuallyEdited = true;
+    titleInput.value = art.frontmatter.title;
+    slugInput.value = art.slug;
+    slugInput.disabled = true;
+    authorSelect.value = art.frontmatter.author;
+    categorySelect.value = art.frontmatter.category;
+    levelSelect.value = art.frontmatter.level;
+    dateInput.value = art.frontmatter.pubDate || new Date().toISOString().slice(0, 10);
+    tagsInput.value = (art.frontmatter.tags || []).join(', ');
+    descInput.value = art.frontmatter.description;
+    bodyInput.value = art.body;
+    draftCheckbox.checked = Boolean(art.frontmatter.draft);
+    publishBtn.textContent = 'Salva modifiche';
+    deleteBtn.hidden = false;
+    hideBanner();
+    renderArticlesList();
+    renderPreview();
+  }
+
+  function renderArticlesList() {
+    articlesCountEl.textContent = String(articlesCache.length);
+    if (articlesCache.length === 0) {
+      articlesListEl.innerHTML = '<div class="muted small">Nessun articolo trovato.</div>';
+      return;
+    }
+
+    articlesListEl.innerHTML = '';
+    for (const art of articlesCache) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `article-item ${editingSlug === art.slug ? 'active' : ''}`;
+
+      const statusBadge = art.frontmatter.draft
+        ? '<span class="mini-badge warn">Bozza</span>'
+        : '<span class="mini-badge ok">Pubblicato</span>';
+      const enBadge = art.hasEnglish
+        ? '<span class="mini-badge en">IT + EN</span>'
+        : '<span class="mini-badge">Solo IT</span>';
+
+      btn.innerHTML = `
+        <div class="item-title">${escapeHtml(art.frontmatter.title)}</div>
+        <div class="item-meta">
+          <span>${escapeHtml(AUTHOR_NAMES[art.frontmatter.author] || art.frontmatter.author)}</span>
+          <span>·</span>
+          <span>${escapeHtml(art.frontmatter.pubDate)}</span>
+        </div>
+        <div class="item-badges">${statusBadge}${enBadge}</div>
+      `;
+      btn.addEventListener('click', () => loadArticleIntoForm(art));
+      articlesListEl.appendChild(btn);
+    }
+  }
+
+  function escapeHtml(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // --- API Layer (Cloudflare backend vs GitHub Direct) ---
+
+  async function ghApi(path: string, init: RequestInit = {}) {
+    if (!ghCreds) throw new Error('Token GitHub non configurato');
+    const url = `https://api.github.com/repos/${ghCreds.repo}${path}`;
+    return fetch(url, {
+      ...init,
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${ghCreds.token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...(init.headers || {}),
+      },
+    });
+  }
+
+  async function fetchArticles() {
+    articlesListEl.innerHTML = '<div class="muted small">Caricamento articoli...</div>';
+    if (backendMode === 'cloudflare') {
+      const res = await fetch(`${API_BASE}/articles`);
+      if (res.status === 401) {
+        showLoginScreen();
+        return;
+      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Errore caricamento articoli');
+      articlesCache = data.articles || [];
+    } else {
+      const branch = ghCreds!.branch;
+      const [itRes, enRes] = await Promise.all([
+        ghApi(`/contents/src/content/articles?ref=${encodeURIComponent(branch)}`),
+        ghApi(`/contents/src/content/articles/en?ref=${encodeURIComponent(branch)}`),
+      ]);
+      if (!itRes.ok) throw new Error('Impossibile leggere il repo GitHub. Controlla token e permessi.');
+      const itList = await itRes.json();
+      const enList = enRes.ok ? await enRes.json() : [];
+      const enSlugs = new Set(
+        (Array.isArray(enList) ? enList : [])
+          .filter((f: any) => f.type === 'file' && /\.mdx?$/.test(f.name))
+          .map((f: any) => f.name.replace(/\.mdx?$/, ''))
+      );
+      const mdFiles = (Array.isArray(itList) ? itList : []).filter(
+        (f: any) => f.type === 'file' && /\.mdx?$/.test(f.name)
+      );
+      const loaded = await Promise.all(
+        mdFiles.map(async (f: any) => {
+          const r = await ghApi(`/contents/${f.path}?ref=${encodeURIComponent(branch)}`);
+          if (!r.ok) return null;
+          const json = await r.json();
+          const { frontmatter, body } = parseMarkdownFrontmatter(base64ToUtf8(json.content || ''));
+          const slug = f.name.replace(/\.mdx?$/, '');
+          return {
+            slug,
+            path: f.path,
+            sha: json.sha,
+            hasEnglish: enSlugs.has(slug),
+            frontmatter: {
+              title: String(frontmatter.title || slug),
+              description: String(frontmatter.description || ''),
+              pubDate: String(frontmatter.pubDate || '').slice(0, 10),
+              author: String(frontmatter.author || 'alessandro'),
+              category: String(frontmatter.category || 'Meccatronica & Hybrid'),
+              tags: Array.isArray(frontmatter.tags) ? (frontmatter.tags as string[]) : [],
+              level: String(frontmatter.level || 'Intermedio'),
+              draft: Boolean(frontmatter.draft),
+            },
+            body,
+          } satisfies ArticleRecord;
+        })
+      );
+      articlesCache = (loaded.filter(Boolean) as ArticleRecord[]).sort((a, b) =>
+        b.frontmatter.pubDate.localeCompare(a.frontmatter.pubDate)
+      );
+    }
+    renderArticlesList();
+  }
+
+  async function saveArticle() {
+    const title = titleInput.value.trim();
+    const slug = slugify(slugInput.value || title);
+    const description = descInput.value.trim();
+    const body = bodyInput.value.trim();
+    if (!title || !slug || !description || !body) {
+      showBanner('Compila titolo, slug, descrizione e contenuto dell’articolo.', true);
+      return;
+    }
+
+    const tags = tagsInput.value
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    const payload = {
+      slug,
+      title,
+      description,
+      pubDate: dateInput.value || new Date().toISOString().slice(0, 10),
+      author: authorSelect.value,
+      category: categorySelect.value,
+      tags,
+      level: levelSelect.value,
+      draft: draftCheckbox.checked,
+      body,
+      sha: editingSha || undefined,
+    };
+
+    publishBtn.disabled = true;
+    publishBtn.textContent = 'Salvataggio...';
+    hideBanner();
+
+    try {
+      if (backendMode === 'cloudflare') {
+        const res = await fetch(`${API_BASE}/articles`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Errore salvataggio');
+        editingSlug = data.slug;
+        editingSha = data.sha;
+      } else {
+        const path = `src/content/articles/${slug}.md`;
+        let sha = editingSha;
+        if (!sha) {
+          const check = await ghApi(`/contents/${path}?ref=${encodeURIComponent(ghCreds!.branch)}`);
+          if (check.ok) sha = (await check.json()).sha;
+        }
+        const md = serializeMarkdown(payload);
+        const res = await ghApi(`/contents/${path}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: sha
+              ? `aggiorna articolo: ${slug} (via admin)`
+              : `pubblica articolo: ${slug} (via admin)`,
+            content: utf8ToBase64(md),
+            branch: ghCreds!.branch,
+            ...(sha ? { sha } : {}),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Errore commit su GitHub');
+        editingSlug = slug;
+        editingSha = data?.content?.sha || null;
+      }
+
+      slugInput.disabled = true;
+      publishBtn.textContent = 'Salva modifiche';
+      deleteBtn.hidden = false;
+      showBanner(
+        payload.draft
+          ? 'Bozza salvata su GitHub.'
+          : 'Articolo pubblicato su GitHub! La traduzione inglese automatica e il deploy partiranno entro 1-2 minuti.'
+      );
+      await fetchArticles();
+    } catch (err: any) {
+      showBanner(err?.message || 'Errore imprevisto durante il salvataggio.', true);
+    } finally {
+      publishBtn.disabled = false;
+      publishBtn.textContent = editingSlug ? 'Salva modifiche' : 'Pubblica articolo';
+    }
+  }
+
+  async function deleteCurrentArticle() {
+    if (!editingSlug) return;
+    if (!confirm(`Vuoi davvero eliminare "${titleInput.value || editingSlug}" (e l'eventuale traduzione EN)?`)) {
+      return;
+    }
+
+    deleteBtn.disabled = true;
+    try {
+      if (backendMode === 'cloudflare') {
+        const res = await fetch(`${API_BASE}/articles`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug: editingSlug }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Errore eliminazione');
+      } else {
+        const itPath = `src/content/articles/${editingSlug}.md`;
+        const enPath = `src/content/articles/en/${editingSlug}.md`;
+        await ghApi(`/contents/${itPath}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: `elimina articolo: ${editingSlug} (via admin)`,
+            sha: editingSha,
+            branch: ghCreds!.branch,
+          }),
+        });
+        const enCheck = await ghApi(`/contents/${enPath}?ref=${encodeURIComponent(ghCreds!.branch)}`);
+        if (enCheck.ok) {
+          const enJson = await enCheck.json();
+          await ghApi(`/contents/${enPath}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: `elimina traduzione EN: ${editingSlug} (via admin)`,
+              sha: enJson.sha,
+              branch: ghCreds!.branch,
+            }),
+          });
+        }
+      }
+      await fetchArticles();
+      resetFormForNew();
+      showBanner('Articolo eliminato correttamente.');
+    } catch (err: any) {
+      showBanner(err?.message || 'Errore durante eliminazione.', true);
+    } finally {
+      deleteBtn.disabled = false;
+    }
+  }
+
+  async function uploadImageFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = String(reader.result || '');
+      const base64 = dataUrl.replace(/^data:[^;]+;base64,/, '');
+      const slug = slugify(slugInput.value || titleInput.value || 'articoli') || 'articoli';
+      showBanner(`Caricamento immagine "${file.name}" in corso...`);
+
+      try {
+        let imageUrl = '';
+        if (backendMode === 'cloudflare') {
+          const res = await fetch(`${API_BASE}/upload`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: file.name, contentBase64: base64, slug }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Errore upload immagine');
+          imageUrl = data.url;
+        } else {
+          const cleanName = file.name.toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
+          const stamp = Date.now();
+          const repoPath = `public/uploads/${slug}/${stamp}-${cleanName}`;
+          const res = await ghApi(`/contents/${repoPath}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: `carica immagine ${cleanName} (via admin)`,
+              content: base64,
+              branch: ghCreds!.branch,
+            }),
+          });
+          if (!res.ok) throw new Error('Errore upload su GitHub');
+          imageUrl = `/uploads/${slug}/${stamp}-${cleanName}`;
+        }
+
+        insertAtCursor(`\n![${file.name.replace(/\.[^.]+$/, '')}](${imageUrl})\n`);
+        showBanner('Immagine caricata e inserita nell’articolo!');
+      } catch (err: any) {
+        showBanner(err?.message || 'Errore upload immagine.', true);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function insertAtCursor(snippet: string, wrapStart?: string, wrapEnd?: string) {
+    const start = bodyInput.selectionStart;
+    const end = bodyInput.selectionEnd;
+    const selected = bodyInput.value.slice(start, end);
+
+    const textToInsert =
+      wrapStart && wrapEnd ? `${wrapStart}${selected || snippet}${wrapEnd}` : snippet;
+
+    bodyInput.setRangeText(textToInsert, start, end, 'end');
+    bodyInput.focus();
+    renderPreview();
+  }
+
+  function enterStudio(authorId: string) {
+    currentAuthor = authorId;
+    loginView.hidden = true;
+    studioView.hidden = false;
+    studioModeBadge.textContent =
+      backendMode === 'cloudflare' ? 'Cloudflare Pages Admin' : 'GitHub Direct Admin';
+    studioUserLabel.textContent = `Connesso come ${AUTHOR_NAMES[authorId] || authorId}`;
+    resetFormForNew();
+    fetchArticles().catch((err) => showBanner(err.message, true));
+  }
+
+  function showLoginScreen() {
+    studioView.hidden = true;
+    loginView.hidden = false;
+  }
+
+  async function initAdmin() {
+    try {
+      const res = await fetch(`${API_BASE}/session`);
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
+        const data = await res.json();
+        backendMode = 'cloudflare';
+        if (!data.configured) {
+          modeSubtitle.textContent = 'Backend Cloudflare rilevato, ma mancano le variabili ambiente.';
+          modeAlert.innerHTML =
+            'Imposta <code>GITHUB_TOKEN</code> e <code>ADMIN_PASSWORD</code> nelle impostazioni di Cloudflare Pages (Settings → Environment variables).';
+          modeAlert.hidden = false;
+        } else {
+          modeSubtitle.textContent = 'Accedi con il tuo nome e la password della redazione.';
+        }
+        cfLoginForm.hidden = false;
+        if (data.authenticated && data.author) {
+          enterStudio(data.author);
+        }
+        return;
+      }
+    } catch {
+      // Fallback a GitHub Direct
+    }
+
+    backendMode = 'github-direct';
+    modeSubtitle.textContent = 'Sei su hosting statico (GitHub Pages): accesso diretto tramite GitHub Token.';
+    modeAlert.innerHTML =
+      'Su <strong>GitHub Pages</strong> non c’è un backend per login con password: puoi entrare qui con un <em>GitHub Fine-Grained Token</em> oppure passare a <strong>Cloudflare Pages</strong> (€0) per usare il login semplice con password.';
+    modeAlert.hidden = false;
+    ghLoginForm.hidden = false;
+
+    const saved = localStorage.getItem('ifc_gh_creds');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed?.token && parsed?.repo) {
+          ghCreds = { token: parsed.token, repo: parsed.repo, branch: parsed.branch || 'main' };
+          enterStudio(parsed.author || 'alessandro');
+        }
+      } catch {
+        localStorage.removeItem('ifc_gh_creds');
+      }
+    }
+  }
+
+  // Event listeners
+  cfLoginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearError();
+    const author = (document.getElementById('login-author') as HTMLSelectElement).value;
+    const password = (document.getElementById('login-password') as HTMLInputElement).value;
+    try {
+      const res = await fetch(`${API_BASE}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ author, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Accesso negato');
+      enterStudio(data.author);
+    } catch (err: any) {
+      showError(err?.message || 'Errore di autenticazione.');
+    }
+  });
+
+  ghLoginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearError();
+    const author = (document.getElementById('gh-author') as HTMLSelectElement).value;
+    const repo = (document.getElementById('gh-repo') as HTMLInputElement).value.trim();
+    const token = (document.getElementById('gh-token') as HTMLInputElement).value.trim();
+    const remember = (document.getElementById('gh-remember') as HTMLInputElement).checked;
+    ghCreds = { token, repo, branch: 'main' };
+
+    try {
+      const check = await ghApi('/contents/src/content/articles');
+      if (!check.ok) throw new Error('Token non valido o permessi insufficienti sul repository.');
+      if (remember) {
+        localStorage.setItem('ifc_gh_creds', JSON.stringify({ ...ghCreds, author }));
+      }
+      enterStudio(author);
+    } catch (err: any) {
+      ghCreds = null;
+      showError(err?.message || 'Connessione GitHub fallita.');
+    }
+  });
+
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    if (backendMode === 'cloudflare') {
+      await fetch(`${API_BASE}/logout`, { method: 'POST' });
+    } else {
+      localStorage.removeItem('ifc_gh_creds');
+      ghCreds = null;
+    }
+    showLoginScreen();
+  });
+
+  document.getElementById('new-article-btn')?.addEventListener('click', resetFormForNew);
+  document.getElementById('refresh-list-btn')?.addEventListener('click', () => {
+    fetchArticles().catch((err) => showBanner(err.message, true));
+  });
+  publishBtn.addEventListener('click', saveArticle);
+  deleteBtn.addEventListener('click', deleteCurrentArticle);
+
+  titleInput.addEventListener('input', () => {
+    if (!editingSlug && !slugManuallyEdited) {
+      slugInput.value = slugify(titleInput.value);
+    }
+  });
+  slugInput.addEventListener('input', () => {
+    slugManuallyEdited = true;
+  });
+  bodyInput.addEventListener('input', renderPreview);
+
+  imageUploadInput.addEventListener('change', () => {
+    const file = imageUploadInput.files?.[0];
+    if (file) uploadImageFile(file);
+    imageUploadInput.value = '';
+  });
+
+  // Formatting toolbar
+  document.querySelectorAll('.tb-btn[data-insert]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const type = (btn as HTMLElement).dataset.insert;
+      switch (type) {
+        case 'h2':
+          insertAtCursor('\n## Titolo sezione\n');
+          break;
+        case 'h3':
+          insertAtCursor('\n### Sottotitolo\n');
+          break;
+        case 'bold':
+          insertAtCursor('testo in grassetto', '**', '**');
+          break;
+        case 'italic':
+          insertAtCursor('testo in corsivo', '*', '*');
+          break;
+        case 'list':
+          insertAtCursor('\n- Primo punto\n- Secondo punto\n');
+          break;
+        case 'quote':
+          insertAtCursor('\n> **Nota tecnica:** scrivi qui il punto chiave.\n');
+          break;
+        case 'link':
+          insertAtCursor('testo del link', '[', '](https://)');
+          break;
+        case 'code':
+          insertAtCursor('\n```python\n# Codice di esempio\nprint("I Fratelli Cuscinetto")\n```\n');
+          break;
+        case 'math-inline':
+          insertAtCursor('E = mc^2', '$', '$');
+          break;
+        case 'math-block':
+          insertAtCursor('\n$$\np_0 = \\frac{3F}{2\\pi a b}\n$$\n');
+          break;
+        case 'table':
+          insertAtCursor('\n| Parametro | Valore | Unità |\n| :--- | :---: | :--- |\n| Pressione | 1.2 | GPa |\n');
+          break;
+      }
+    });
+  });
+
+  // View mode tabs
+  const viewTabs = document.querySelectorAll('.view-tab[data-view]');
+  viewTabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      viewTabs.forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+      const mode = (tab as HTMLElement).dataset.view || 'split';
+      workspacePanes.className = `workspace-panes view-${mode}`;
+    });
+  });
+
+  initAdmin();
+</script>
+
+<style>
+  .admin-shell {
+    min-height: calc(100vh - 200px);
+  }
+
+  .login-wrap {
+    padding: 4rem 1.25rem;
+    display: flex;
+    justify-content: center;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 480px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 2rem;
+    box-shadow: var(--shadow-md);
+  }
+
+  .login-head h1 {
+    margin: 0.75rem 0 0.4rem;
+    font-size: 1.65rem;
+    letter-spacing: -0.02em;
+  }
+
+  .muted {
+    color: var(--text-muted);
+  }
+
+  .small {
+    font-size: 0.85rem;
+  }
+
+  .info-banner {
+    margin: 1rem 0;
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    font-size: 0.88rem;
+    color: var(--text-muted);
+  }
+
+  .login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1.25rem;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .field input,
+  .field select,
+  .field textarea {
+    padding: 0.6rem 0.8rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+  }
+
+  .field input:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  .checkbox-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+
+  .error-box {
+    margin-top: 1rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 10px;
+    background: rgba(220, 38, 38, 0.1);
+    border: 1px solid rgba(220, 38, 38, 0.35);
+    color: #ef4444;
+    font-size: 0.88rem;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.6rem 1.1rem;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s ease, background-color 0.15s ease;
+  }
+
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .btn-secondary {
+    background: var(--bg-elevated);
+    border-color: var(--border);
+    color: var(--text);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+  }
+
+  .btn-danger {
+    background: transparent;
+    border-color: rgba(220, 38, 38, 0.4);
+    color: #ef4444;
+  }
+
+  .btn-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  /* Studio */
+  .studio-topbar {
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-elevated);
+    padding: 0.85rem 0;
+  }
+
+  .studio-topbar-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .studio-status,
+  .studio-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .studio-grid {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 1.5rem;
+    padding-top: 1.5rem;
+    align-items: start;
+  }
+
+  .articles-sidebar {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1rem;
+    position: sticky;
+    top: 86px;
+    max-height: calc(100vh - 110px);
+    overflow-y: auto;
+  }
+
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.85rem;
+  }
+
+  .sidebar-header h2 {
+    margin: 0;
+    font-size: 0.95rem;
+  }
+
+  .articles-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  :global(.article-item) {
+    text-align: left;
+    padding: 0.7rem 0.75rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  :global(.article-item.active),
+  :global(.article-item:hover) {
+    border-color: var(--accent);
+  }
+
+  :global(.item-title) {
+    font-size: 0.86rem;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  :global(.item-meta) {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    display: flex;
+    gap: 0.3rem;
+  }
+
+  :global(.item-badges) {
+    display: flex;
+    gap: 0.35rem;
+  }
+
+  :global(.mini-badge) {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    background: var(--bg-subtle);
+    color: var(--text-muted);
+  }
+
+  :global(.mini-badge.ok) {
+    color: var(--accent-hybrid);
+    background: var(--accent-hybrid-soft);
+  }
+
+  :global(.mini-badge.warn) {
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  :global(.mini-badge.en) {
+    color: var(--accent-ai);
+    background: var(--accent-ai-soft);
+  }
+
+  .editor-panel {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+  }
+
+  .toast-banner {
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    background: var(--accent-hybrid-soft);
+    color: var(--accent-hybrid);
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  .toast-banner.is-error {
+    background: rgba(220, 38, 38, 0.12);
+    color: #ef4444;
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+  }
+
+  .field-wide {
+    grid-column: 1 / -1;
+  }
+
+  .editor-toolbar-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    padding: 0.55rem;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+
+  .format-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .tb-btn {
+    padding: 0.32rem 0.55rem;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    cursor: pointer;
+  }
+
+  .tb-btn:hover {
+    border-color: var(--accent);
+  }
+
+  .view-tabs {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .view-tab {
+    padding: 0.32rem 0.7rem;
+    border: 0;
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  .view-tab.active {
+    background: var(--text);
+    color: var(--bg);
+  }
+
+  .workspace-panes {
+    display: grid;
+    gap: 1rem;
+    min-height: 460px;
+  }
+
+  .workspace-panes.view-split {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .workspace-panes.view-write {
+    grid-template-columns: 1fr;
+  }
+  .workspace-panes.view-write .preview-pane {
+    display: none;
+  }
+
+  .workspace-panes.view-preview {
+    grid-template-columns: 1fr;
+  }
+  .workspace-panes.view-preview .markdown-input {
+    display: none;
+  }
+
+  .markdown-input {
+    width: 100%;
+    min-height: 460px;
+    padding: 1rem;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+    line-height: 1.6;
+    resize: vertical;
+  }
+
+  .preview-pane {
+    max-width: none;
+    min-height: 460px;
+    max-height: 680px;
+    overflow-y: auto;
+    padding: 1rem 1.2rem;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    font-size: 1rem;
+  }
+
+  .publish-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .publish-buttons {
+    display: flex;
+    gap: 0.65rem;
+  }
+
+  @media (max-width: 980px) {
+    .studio-grid {
+      grid-template-columns: 1fr;
+    }
+    .articles-sidebar {
+      position: static;
+      max-height: 260px;
+    }
+    .workspace-panes.view-split {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .meta-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
