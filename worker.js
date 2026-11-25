@@ -21,6 +21,38 @@ const METHOD_MAP = {
   DELETE: 'onRequestDelete',
 };
 
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'DELETE', 'PATCH']);
+
+function withSecurityHeaders(response) {
+  const headers = new Headers(response.headers);
+  headers.set('X-Content-Type-Options', 'nosniff');
+  headers.set('X-Frame-Options', 'DENY');
+  headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+function isSameOriginMutation(request, url) {
+  const origin = request.headers.get('Origin');
+  if (origin) {
+    return origin === url.origin;
+  }
+  const referer = request.headers.get('Referer');
+  if (referer) {
+    try {
+      return new URL(referer).origin === url.origin;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -28,21 +60,34 @@ export default {
     const handlerModule = ROUTES[pathname];
 
     if (handlerModule) {
+      if (MUTATING_METHODS.has(request.method) && !isSameOriginMutation(request, url)) {
+        return withSecurityHeaders(
+          new Response(JSON.stringify({ error: 'Origine richiesta non autorizzata.' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          })
+        );
+      }
+
       const fnName = METHOD_MAP[request.method];
       const handler = fnName ? handlerModule[fnName] : null;
       if (typeof handler === 'function') {
-        return handler({ request, env, ctx });
+        const res = await handler({ request, env, ctx });
+        return withSecurityHeaders(res);
       }
-      return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
-        status: 405,
-        headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      });
+      return withSecurityHeaders(
+        new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
+          status: 405,
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        })
+      );
     }
 
     if (env.ASSETS) {
-      return env.ASSETS.fetch(request);
+      const assetRes = await env.ASSETS.fetch(request);
+      return withSecurityHeaders(assetRes);
     }
 
-    return new Response('Not Found', { status: 404 });
+    return withSecurityHeaders(new Response('Not Found', { status: 404 }));
   },
 };

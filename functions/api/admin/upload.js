@@ -8,6 +8,8 @@ import {
 } from '../../../lib/admin-server.js';
 
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+// Solo immagini raster sicure (esclude SVG/HTML/JS per eliminare rischi di stored XSS)
+const ALLOWED_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif']);
 
 export async function onRequestPost({ request, env }) {
   const session = await getAuthenticatedSession(request, env);
@@ -24,9 +26,19 @@ export async function onRequestPost({ request, env }) {
 
   const slug = sanitizeSlug(body?.slug || 'articoli') || 'articoli';
   const filename = sanitizeFilename(body?.filename || 'immagine.png');
+  const extMatch = filename.match(/(\.[a-z0-9]+)$/);
+  const ext = extMatch ? extMatch[1] : '';
+
+  if (!ALLOWED_EXTS.has(ext)) {
+    return jsonResponse(
+      { error: 'Formato non consentito. Usa solo PNG, JPG, WebP, GIF o AVIF.' },
+      400
+    );
+  }
+
   const contentBase64 = String(body?.contentBase64 || '').replace(/^data:[^;]+;base64,/, '');
 
-  if (!contentBase64) {
+  if (!contentBase64 || !/^[A-Za-z0-9+/=\s]+$/.test(contentBase64)) {
     return jsonResponse({ error: 'Immagine vuota o non valida.' }, 400);
   }
 
@@ -50,8 +62,7 @@ export async function onRequestPost({ request, env }) {
   });
 
   if (!putRes.ok) {
-    const errText = await putRes.text();
-    return jsonResponse({ error: `Errore upload immagine: ${errText}` }, putRes.status);
+    return jsonResponse({ error: 'Errore durante il caricamento su GitHub.' }, putRes.status);
   }
 
   return jsonResponse({

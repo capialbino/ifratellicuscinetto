@@ -601,6 +601,11 @@ const initialConfigJson = JSON.stringify(siteConfig);
     safe = safe.replace(/@@CODE_BLOCK_(\d+)@@/g, (_, idx) => codeTokens[Number(idx)] || '');
 
     let html = marked.parse(safe) as string;
+    html = html
+      .replace(/<(script|iframe|object|embed|style)[\s\S]*?<\/\1>/gi, '')
+      .replace(/<(script|iframe|object|embed)\b[^>]*\/?>/gi, '')
+      .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+      .replace(/javascript:/gi, '');
     html = html.replace(/@@MATH_(\d+)@@/g, (_, idx) => mathTokens[Number(idx)] || '');
 
     livePreviewEl.innerHTML = html || '<p class="muted">L’anteprima apparirà qui mentre scrivi...</p>';

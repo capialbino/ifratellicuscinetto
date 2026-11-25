@@ -52,15 +52,19 @@ const SPACING_MAP: Record<SiteConfig['theme']['spacing'], { heroPad: string; sec
   compact: { heroPad: 'clamp(2.25rem, 5vw, 3.5rem)', sectionGap: '1.75rem' },
 };
 
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
 export function buildThemeStyleVars(cfg: SiteConfig = siteConfig): string {
   const rad = RADIUS_MAP[cfg.theme.radius] ?? RADIUS_MAP.ive;
   const space = SPACING_MAP[cfg.theme.spacing] ?? SPACING_MAP.airy;
   const headingVar = cfg.theme.headingFont === 'serif' ? 'var(--font-serif)' : 'var(--font-display)';
   const proseVar = cfg.theme.proseFont === 'serif' ? 'var(--font-serif)' : 'var(--font-sans)';
+  const accentLight = HEX_COLOR.test(cfg.theme.accentLight) ? cfg.theme.accentLight : '#0071e3';
+  const accentDark = HEX_COLOR.test(cfg.theme.accentDark) ? cfg.theme.accentDark : '#2997ff';
 
   return [
-    `--user-accent-light: ${cfg.theme.accentLight};`,
-    `--user-accent-dark: ${cfg.theme.accentDark};`,
+    `--user-accent-light: ${accentLight};`,
+    `--user-accent-dark: ${accentDark};`,
     `--radius-card: ${rad.card};`,
     `--radius-control: ${rad.control};`,
     `--hero-pad-y: ${space.heroPad};`,
