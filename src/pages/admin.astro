@@ -147,19 +147,8 @@ const initialConfigJson = JSON.stringify(siteConfig);
               <input id="art-date" type="date" />
             </label>
 
-            <label class="field">
-              <span>Tag (separati da virgola)</span>
-              <input id="art-tags" type="text" placeholder="cuscinetti, controllo, ai" />
-            </label>
-
-            <label class="field field-wide">
-              <span>Riassunto / Descrizione SEO *</span>
-              <textarea
-                id="art-desc"
-                rows="2"
-                placeholder="Breve descrizione di 1-2 righe che compare nella home e nei motori di ricerca."
-              ></textarea>
-            </label>
+            <input id="art-tags" type="hidden" />
+            <input id="art-desc" type="hidden" />
           </div>
 
           <!-- Toolbar & Preview switcher -->
@@ -180,11 +169,8 @@ const initialConfigJson = JSON.stringify(siteConfig);
                 🖼 Immagine
                 <input id="image-upload-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" hidden />
               </label>
-              <button type="button" id="ai-format-btn" class="tb-btn tb-ai" title="Impamina in Markdown, converte formule in LaTeX e genera SEO/tag">
+              <button type="button" id="ai-format-btn" class="tb-btn tb-ai" title="Impagina in Markdown e converte le formule in LaTeX">
                 ✨ Formatta &amp; LaTeX
-              </button>
-              <button type="button" id="ai-seo-btn" class="tb-btn tb-ai" title="Genera descrizione SEO e tag dal testo">
-                ✨ SEO &amp; Tag
               </button>
               <button type="button" id="ai-undo-btn" class="tb-btn" hidden title="Ripristina il testo prima dell’ultima modifica AI">
                 ↩ Ripristina
@@ -783,8 +769,8 @@ const initialConfigJson = JSON.stringify(siteConfig);
     const slug = slugify(slugInput.value || title);
     const description = descInput.value.trim();
     const body = bodyInput.value.trim();
-    if (!title || !slug || !description || !body) {
-      showBanner('Compila titolo, descrizione e contenuto dell’articolo.', true);
+    if (!title || !slug || !body) {
+      showBanner('Compila almeno titolo e contenuto dell’articolo.', true);
       return;
     }
 
@@ -1067,9 +1053,8 @@ const initialConfigJson = JSON.stringify(siteConfig);
     imageUploadInput.value = '';
   });
 
-  // Assistente AI (Formatta & LaTeX / SEO & Tag)
+  // Assistente AI (Formatta & LaTeX)
   const aiFormatBtn = document.getElementById('ai-format-btn') as HTMLButtonElement;
-  const aiSeoBtn = document.getElementById('ai-seo-btn') as HTMLButtonElement;
   const aiUndoBtn = document.getElementById('ai-undo-btn') as HTMLButtonElement;
   let lastAiSnapshot: {
     title: string;
@@ -1080,7 +1065,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
     body: string;
   } | null = null;
 
-  async function runAiAssist(mode: 'format' | 'seo') {
+  async function runAiFormat() {
     const body = bodyInput.value.trim();
     if (body.length < 20) {
       showBanner('Scrivi o incolla almeno qualche riga di testo prima di usare l’AI.', true);
@@ -1096,11 +1081,9 @@ const initialConfigJson = JSON.stringify(siteConfig);
       body: bodyInput.value,
     };
 
-    const activeBtn = mode === 'format' ? aiFormatBtn : aiSeoBtn;
-    const origLabel = activeBtn.textContent || '';
+    const origLabel = aiFormatBtn.textContent || '';
     aiFormatBtn.disabled = true;
-    aiSeoBtn.disabled = true;
-    activeBtn.textContent = 'Elaborazione AI...';
+    aiFormatBtn.textContent = 'Elaborazione AI...';
     hideBanner();
 
     try {
@@ -1108,7 +1091,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          mode,
+          mode: 'format',
           title: titleInput.value.trim(),
           body,
         }),
@@ -1117,7 +1100,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
       if (!res.ok) throw new Error(data.error || 'Errore AI');
       const r = data.result || {};
 
-      if (mode === 'format' && r.body) {
+      if (r.body) {
         bodyInput.value = r.body;
         renderPreview();
       }
@@ -1135,22 +1118,16 @@ const initialConfigJson = JSON.stringify(siteConfig);
       }
 
       aiUndoBtn.hidden = false;
-      showBanner(
-        mode === 'format'
-          ? `Testo impaginato con LaTeX e SEO generati (${data.model}). Controlla l’anteprima o clicca "Ripristina" per tornare indietro.`
-          : `Descrizione SEO e tag generati (${data.model}).`
-      );
+      showBanner('Testo impaginato con Markdown e LaTeX. Controlla l’anteprima o clicca "Ripristina" per tornare indietro.');
     } catch (err: any) {
       showBanner(err?.message || 'Errore durante l’elaborazione AI.', true);
     } finally {
       aiFormatBtn.disabled = false;
-      aiSeoBtn.disabled = false;
-      activeBtn.textContent = origLabel;
+      aiFormatBtn.textContent = origLabel;
     }
   }
 
-  aiFormatBtn?.addEventListener('click', () => runAiAssist('format'));
-  aiSeoBtn?.addEventListener('click', () => runAiAssist('seo'));
+  aiFormatBtn?.addEventListener('click', runAiFormat);
   aiUndoBtn?.addEventListener('click', () => {
     if (!lastAiSnapshot) return;
     titleInput.value = lastAiSnapshot.title;
