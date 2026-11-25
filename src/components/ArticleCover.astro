@@ -1,19 +1,29 @@
 ---
+import fs from 'node:fs';
+import path from 'node:path';
 import { withBase } from '../utils/paths';
 
 interface Props {
+  slug?: string;
   coverImage?: string;
   title: string;
   category: 'Meccanica' | 'AI & Software' | 'Meccatronica & Hybrid';
   variant?: 'featured' | 'card';
 }
 
-const { coverImage, title, category, variant = 'card' } = Astro.props;
+const { slug, coverImage, title, category, variant = 'card' } = Astro.props;
+const cleanSlug = slug ? slug.split('/').at(-1) : '';
+const autoCoverExists = cleanSlug
+  ? fs.existsSync(path.resolve('public/covers', `${cleanSlug}.svg`))
+  : false;
+
 const resolvedSrc = coverImage
   ? coverImage.startsWith('http://') || coverImage.startsWith('https://')
     ? coverImage
     : withBase(coverImage)
-  : null;
+  : autoCoverExists
+    ? withBase(`/covers/${cleanSlug}.svg`)
+    : null;
 ---
 
 <div class:list={['article-cover', `cover-${variant}`, `cat-${category === 'Meccanica' ? 'mech' : category === 'AI & Software' ? 'ai' : 'hybrid'}`]}>

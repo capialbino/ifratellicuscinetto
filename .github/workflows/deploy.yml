@@ -39,13 +39,18 @@ jobs:
           DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
         run: node scripts/translate-articles.mjs
 
-      - name: Commit generated English translations
+      - name: Auto-generate technical SVG article covers
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node scripts/generate-covers.mjs
+
+      - name: Commit generated translations and covers
         run: |
-          if [ -n "$(git status --porcelain src/content/articles/en)" ]; then
+          if [ -n "$(git status --porcelain src/content/articles/en public/covers)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add src/content/articles/en
-            git commit -m "chore: traduzione automatica articoli in inglese"
+            git add src/content/articles/en public/covers
+            git commit -m "chore: traduzione automatica EN e cover SVG articoli"
             git push
           fi
 

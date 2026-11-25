@@ -25,6 +25,7 @@ const readingTime = estimateReadingTime(body);
 >
   <a href={withBase(locale === 'it' ? `/articoli/${id}` : `/en/articles/${id.split('/').at(-1)}`)} class="card-link">
     <ArticleCover
+      slug={id}
       coverImage={data.coverImage}
       title={data.title}
       category={data.category}

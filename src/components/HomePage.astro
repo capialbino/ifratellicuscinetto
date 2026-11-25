@@ -81,6 +81,7 @@ const languageSwitchHref = locale === 'it' ? '/en/' : '/';
 
         <div class="featured-media">
           <ArticleCover
+            slug={featuredArticle.id}
             coverImage={featuredArticle.data.coverImage}
             title={featuredArticle.data.title}
             category={featuredArticle.data.category}

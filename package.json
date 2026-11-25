@@ -8,6 +8,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "translate": "node scripts/translate-articles.mjs",
+    "covers": "node scripts/generate-covers.mjs",
     "astro": "astro"
   },
   "dependencies": {
