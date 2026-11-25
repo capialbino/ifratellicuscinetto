@@ -280,17 +280,54 @@ async function translateWithGoogleFree(article) {
 async function translateArticle(article) {
   if (process.env.GEMINI_API_KEY) {
     console.log(`  -> Using Gemini API`);
-    return translateWithGemini(article);
+    try {
+      return await translateWithGemini(article);
+    } catch (err) {
+      console.log(`::warning::Gemini ha fallito (${err.message.slice(0, 200)}). Uso il traduttore di riserva.`);
+    }
   }
   if (process.env.DEEPL_API_KEY) {
     console.log(`  -> Using DeepL API`);
-    return translateWithDeepL(article);
+    try {
+      return await translateWithDeepL(article);
+    } catch (err) {
+      console.log(`::warning::DeepL ha fallito (${err.message.slice(0, 200)}). Uso il traduttore di riserva.`);
+    }
   }
   console.log(`  -> Using zero-key Google Translate fallback (set GEMINI_API_KEY or DEEPL_API_KEY for higher technical quality)`);
   return translateWithGoogleFree(article);
 }
 
+/** Verifica che la GEMINI_API_KEY sia valida con una mini-traduzione, senza toccare gli articoli. */
+async function checkProvider() {
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  if (!process.env.GEMINI_API_KEY) {
+    console.log('::notice::GEMINI_API_KEY non impostata: verrà usato il traduttore gratuito di riserva.');
+    return;
+  }
+  try {
+    const result = await translateWithGemini({
+      frontmatter: {
+        title: 'Cuscinetto volvente',
+        description: 'Accoppiamento con interferenza albero-mozzo',
+        tags: ['tribologia'],
+      },
+      body: 'La pressione di contatto $p_0$ raggiunge valori di gigapascal.',
+    });
+    console.log(`✅ GEMINI_API_KEY FUNZIONA (modello ${model})`);
+    console.log(`   "Cuscinetto volvente" -> "${result.title}"`);
+    console.log(`   "Accoppiamento con interferenza albero-mozzo" -> "${result.description}"`);
+    console.log(`   Corpo -> "${result.body}"`);
+  } catch (err) {
+    console.log(`::warning::❌ GEMINI_API_KEY NON FUNZIONA (modello ${model}): ${err.message.slice(0, 300)}`);
+  }
+}
+
 async function main() {
+  if (process.argv.includes('--check')) {
+    await checkProvider();
+    return;
+  }
   await fs.mkdir(EN_DIR, { recursive: true });
   const entries = await fs.readdir(ARTICLES_DIR, { withFileTypes: true });
   const italianFiles = entries.filter((e) => e.isFile() && /\.mdx?$/.test(e.name));

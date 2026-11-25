@@ -28,6 +28,11 @@ jobs:
         with:
           node-version: 20
 
+      - name: Check translation API key
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node scripts/translate-articles.mjs --check
+
       - name: Auto-translate Italian articles to English
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
