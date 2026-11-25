@@ -3,11 +3,11 @@ language: "en"
 title: "Shaft-Hub Fits and ISO Tolerances: Why ±0.01 mm Changes Everything"
 description: "A practical, no-nonsense guide to clearances, interference fits, thermal expansion, and common mistakes when moving from CAD to the workshop."
 pubDate: 2026-11-10
-author: "luca"
+author: "alessandro-rossi"
 category: "Meccanica"
 tags: ["tolerances", "cad", "design", "workshop"]
 level: "Intermedio"
-sourceHash: "c5beb22bd85bc495"
+sourceHash: "bd15da886df03847"
 ---
 
 In CAD, two cylinders with a nominal diameter of $\varnothing 30\,\text{mm}$ always fit together perfectly. Then you send the drawing to the workshop, get the parts back, and discover that the shaft either wobbles in the bore or won't go in even with a hammer.

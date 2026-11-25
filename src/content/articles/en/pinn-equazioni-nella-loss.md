@@ -3,11 +3,11 @@ language: "en"
 title: "Physics-Informed Neural Networks: Putting Equations in the Loss"
 description: "How to make a neural network respect mass conservation and partial differential equations without millions of data points."
 pubDate: 2026-11-15
-author: "alessandro"
+author: "alessandro-capialbi"
 category: "AI & Software"
 tags: ["pinn", "pytorch", "pde", "deep-learning"]
 level: "Tecnico / Avanzato"
-sourceHash: "7eda9cbdd85f3928"
+sourceHash: "d52e8b0d137a2ae0"
 ---
 
 In conventional deep learning, we teach a neural network to map inputs $x$ to outputs $y$ by showing it thousands of pairs $(x_i, y_i)$. But in engineering, experimental data is expensive, while we often **know the differential equations** that govern the system very well.

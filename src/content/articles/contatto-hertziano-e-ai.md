@@ -2,7 +2,7 @@
 title: "Contatto Hertziano e AI: prevedere l'usura di un cuscinetto prima che ceda"
 description: "Dalle pressioni di contatto di Hertz all'analisi vibrazionale con reti neurali: come unire fisica del cuscinetto e machine learning nella manutenzione predittiva."
 pubDate: 2026-11-20
-author: "marco"
+author: "federico"
 category: "Meccatronica & Hybrid"
 tags: ["cuscinetti", "tribologia", "manutenzione-predittiva", "fft"]
 level: "Tecnico / Avanzato"

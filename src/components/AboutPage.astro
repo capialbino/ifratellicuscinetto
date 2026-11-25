@@ -44,21 +44,21 @@ const languageSwitchHref = locale === 'it' ? '/en/about' : '/chi-siamo';
             <div>
               <h3 class="member-name">{member.name}</h3>
               <div class="member-role">{locale === 'it' ? member.role : ({
-                marco: 'Mechanical Engineer',
-                luca: 'Mechanical Engineer',
-                alessandro: 'Computer Engineer & AI Engineer',
+                federico: 'Mechanical Engineer',
+                'alessandro-rossi': 'Mechanical Engineer',
+                'alessandro-capialbi': 'Computer Engineer & AI Engineer',
               }[member.id])}</div>
               <div class="member-disc">{locale === 'it' ? member.discipline : ({
-                marco: 'Turbochargers & Formula 1',
-                luca: 'Mechanical Engineering',
-                alessandro: 'Artificial Intelligence & Software',
+                federico: 'Turbochargers & Formula 1',
+                'alessandro-rossi': 'Mechanical Engineering',
+                'alessandro-capialbi': 'Artificial Intelligence & Software',
               }[member.id])}</div>
             </div>
           </div>
           <p class="member-bio">{locale === 'it' ? member.bio : ({
-            marco: 'Works on Formula 1 turbochargers, at the intersection of mechanical engineering and high-performance systems.',
-            luca: 'Works in mechanical engineering and shares the ideas and applications he encounters in his work.',
-            alessandro: 'Builds bridges between neural networks and the physical world: PINNs, predictive maintenance, edge AI, and high-performance software architectures.',
+            federico: 'Works on Formula 1 turbochargers, at the intersection of mechanical engineering and high-performance systems.',
+            'alessandro-rossi': 'Works in mechanical engineering and shares the ideas and applications he encounters in his work.',
+            'alessandro-capialbi': 'Builds bridges between neural networks and the physical world: PINNs, predictive maintenance, edge AI, and high-performance software architectures.',
           }[member.id])}</p>
         </div>
       ))}

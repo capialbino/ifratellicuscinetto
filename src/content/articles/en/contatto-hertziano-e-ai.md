@@ -3,11 +3,11 @@ language: "en"
 title: "Hertzian Contact and AI: Predicting Bearing Wear Before Failure"
 description: "From Hertzian contact pressure to neural-network vibration analysis: combining bearing physics and machine learning for predictive maintenance."
 pubDate: 2026-11-20
-author: "marco"
+author: "federico"
 category: "Meccatronica & Hybrid"
 tags: ["bearings", "tribology", "predictive-maintenance", "fft"]
 level: "Tecnico / Avanzato"
-sourceHash: "6eb41b664b95d658"
+sourceHash: "79998332649966f3"
 ---
 
 We couldn't launch this site without talking about the component behind our name: the **rolling-element bearing**. It may seem simple until you start calculating what happens in the microscopic contact patch between a ball and its raceway.

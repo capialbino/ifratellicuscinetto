@@ -2,7 +2,7 @@
 title: "Physics-Informed Neural Networks: mettere le equazioni nella Loss"
 description: "Come costringere una rete neurale a rispettare conservazione della massa ed equazioni differenziali alle derivate parziali senza avere milioni di dati."
 pubDate: 2026-11-15
-author: "alessandro"
+author: "alessandro-capialbi"
 category: "AI & Software"
 tags: ["pinn", "pytorch", "pde", "deep-learning"]
 level: "Tecnico / Avanzato"

@@ -68,7 +68,7 @@ export async function onRequestGet({ request, env }) {
           title: frontmatter.title || slug,
           description: frontmatter.description || '',
           pubDate: String(frontmatter.pubDate || '').slice(0, 10),
-          author: frontmatter.author || 'alessandro',
+          author: frontmatter.author || 'alessandro-capialbi',
           category: frontmatter.category || 'Meccatronica & Hybrid',
           tags: Array.isArray(frontmatter.tags) ? frontmatter.tags : [],
           level: frontmatter.level || 'Intermedio',

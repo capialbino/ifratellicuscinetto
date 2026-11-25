@@ -2,7 +2,7 @@
 title: "Accoppiamenti albero-mozzo e tolleranze ISO: perché ±0.01 mm cambia tutto"
 description: "Guida pratica e senza misteri su giochi, interferenze, dilatazioni termiche e errori tipici quando si passa dal CAD all'officina."
 pubDate: 2026-11-10
-author: "luca"
+author: "alessandro-rossi"
 category: "Meccanica"
 tags: ["tolleranze", "cad", "progettazione", "officina"]
 level: "Intermedio"

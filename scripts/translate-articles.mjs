@@ -64,7 +64,7 @@ function serializeEnglishMarkdown({ frontmatter, translated, body, sourceHash })
     ...(frontmatter.updatedDate
       ? [`updatedDate: ${String(frontmatter.updatedDate).slice(0, 10)}`]
       : []),
-    `author: ${JSON.stringify(frontmatter.author || 'alessandro')}`,
+    `author: ${JSON.stringify(frontmatter.author || 'alessandro-capialbi')}`,
     `category: ${JSON.stringify(frontmatter.category || 'Meccatronica & Hybrid')}`,
     `tags: ${JSON.stringify(translated.tags)}`,
     `level: ${JSON.stringify(frontmatter.level || 'Intermedio')}`,

@@ -35,9 +35,9 @@ content:
         required: true
         options:
           values:
-            - { value: marco, label: Federico Pappafava }
-            - { value: luca, label: Alessandro Rossi }
-            - { value: alessandro, label: Alessandro Capialbi }
+            - { value: federico, label: Federico Pappafava }
+            - { value: alessandro-rossi, label: Alessandro Rossi }
+            - { value: alessandro-capialbi, label: Alessandro Capialbi }
       - name: category
         label: Categoria
         type: select

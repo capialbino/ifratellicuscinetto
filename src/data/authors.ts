@@ -1,7 +1,7 @@
 import type { Locale } from '../utils/articles';
 
 export interface Author {
-  id: 'marco' | 'luca' | 'alessandro';
+  id: 'federico' | 'alessandro-rossi' | 'alessandro-capialbi';
   name: string;
   role: string;
   discipline: string;
@@ -13,8 +13,8 @@ export interface Author {
 }
 
 export const AUTHORS: Record<Author['id'], Author> = {
-  marco: {
-    id: 'marco',
+  federico: {
+    id: 'federico',
     name: 'Federico Pappafava',
     role: 'Ingegnere Meccanico',
     discipline: 'Turbo & Formula 1',
@@ -22,8 +22,8 @@ export const AUTHORS: Record<Author['id'], Author> = {
     initials: 'FP',
     accentColor: '#c85a17',
   },
-  luca: {
-    id: 'luca',
+  'alessandro-rossi': {
+    id: 'alessandro-rossi',
     name: 'Alessandro Rossi',
     role: 'Ingegnere Meccanico',
     discipline: 'Ingegneria Meccanica',
@@ -31,8 +31,8 @@ export const AUTHORS: Record<Author['id'], Author> = {
     initials: 'AR',
     accentColor: '#0f766e',
   },
-  alessandro: {
-    id: 'alessandro',
+  'alessandro-capialbi': {
+    id: 'alessandro-capialbi',
     name: 'Alessandro Capialbi',
     role: 'Ingegnere Informatico & AI Engineer',
     discipline: 'Intelligenza Artificiale & Software',
@@ -43,17 +43,17 @@ export const AUTHORS: Record<Author['id'], Author> = {
 };
 
 const ENGLISH_AUTHORS: Record<Author['id'], Pick<Author, 'role' | 'discipline' | 'bio'>> = {
-  marco: {
+  federico: {
     role: 'Mechanical Engineer',
     discipline: 'Turbochargers & Formula 1',
     bio: 'Works on Formula 1 turbochargers, at the intersection of mechanical engineering and high-performance systems.',
   },
-  luca: {
+  'alessandro-rossi': {
     role: 'Mechanical Engineer',
     discipline: 'Mechanical Engineering',
     bio: 'Works in mechanical engineering and shares the ideas and applications he encounters in his work.',
   },
-  alessandro: {
+  'alessandro-capialbi': {
     role: 'Computer Engineer & AI Engineer',
     discipline: 'Artificial Intelligence & Software',
     bio: 'Builds bridges between neural networks and the physical world: PINNs, predictive maintenance, edge AI, and high-performance software architectures.',

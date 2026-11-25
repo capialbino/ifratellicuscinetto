@@ -272,9 +272,9 @@ const apiBase = withBase('/api/admin');
   const API_BASE = root?.dataset.apiBase || '/api/admin';
 
   const AUTHOR_NAMES: Record<string, string> = {
-    marco: 'Federico Pappafava',
-    luca: 'Alessandro Rossi',
-    alessandro: 'Alessandro Capialbi',
+    federico: 'Federico Pappafava',
+    'alessandro-rossi': 'Alessandro Rossi',
+    'alessandro-capialbi': 'Alessandro Capialbi',
   };
 
   // Elements
@@ -327,7 +327,7 @@ const apiBase = withBase('/api/admin');
   }
 
   let backendMode: 'cloudflare' | 'github-direct' = 'cloudflare';
-  let currentAuthor = 'alessandro';
+  let currentAuthor = 'alessandro-capialbi';
   let ghCreds: { token: string; repo: string; branch: string } | null = null;
   let articlesCache: ArticleRecord[] = [];
   let editingSlug: string | null = null;
@@ -627,7 +627,7 @@ const apiBase = withBase('/api/admin');
               title: String(frontmatter.title || slug),
               description: String(frontmatter.description || ''),
               pubDate: String(frontmatter.pubDate || '').slice(0, 10),
-              author: String(frontmatter.author || 'alessandro'),
+              author: String(frontmatter.author || 'alessandro-capialbi'),
               category: String(frontmatter.category || 'Meccatronica & Hybrid'),
               tags: Array.isArray(frontmatter.tags) ? (frontmatter.tags as string[]) : [],
               level: String(frontmatter.level || 'Intermedio'),
@@ -895,7 +895,7 @@ const apiBase = withBase('/api/admin');
         const parsed = JSON.parse(saved);
         if (parsed?.token && parsed?.repo) {
           ghCreds = { token: parsed.token, repo: parsed.repo, branch: parsed.branch || 'main' };
-          enterStudio(parsed.author || 'alessandro');
+          enterStudio(parsed.author || 'alessandro-capialbi');
         }
       } catch {
         localStorage.removeItem('ifc_gh_creds');
