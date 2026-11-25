@@ -191,20 +191,25 @@ const initialConfigJson = JSON.stringify(siteConfig);
             </div>
 
             <div class="view-tabs" role="tablist">
-              <button type="button" class="view-tab active" data-view="split">Diviso</button>
-              <button type="button" class="view-tab" data-view="write">Scrivi</button>
-              <button type="button" class="view-tab" data-view="preview">Anteprima</button>
+              <button type="button" class="view-tab active" data-view="visual">Visuale</button>
+              <button type="button" class="view-tab" data-view="markdown">Markdown</button>
             </div>
           </div>
 
-          <div id="workspace-panes" class="workspace-panes view-split">
+          <div id="workspace-panes" class="workspace-panes view-visual">
+            <div
+              id="visual-editor"
+              class="visual-editor prose"
+              contenteditable="true"
+              spellcheck="true"
+              data-placeholder="Inizia a scrivere qui come su Word o Notion... Puoi usare grassetto, titoli, elenchi, immagini e formule matematiche senza mai toccare codice."
+            ></div>
+
             <textarea
               id="art-body"
               class="markdown-input"
-              placeholder="Scrivi qui l'articolo in italiano...&#10;&#10;Suggerimento: usa i pulsanti qui sopra per titoli, formule matematiche ($...$ o $$...$$), codice e immagini. Quando pubblichi, la versione inglese verrà generata in automatico!"
+              placeholder="Modalità Markdown avanzata..."
             ></textarea>
-
-            <div id="live-preview" class="preview-pane prose"></div>
           </div>
 
           <div class="publish-bar">
@@ -392,8 +397,59 @@ const initialConfigJson = JSON.stringify(siteConfig);
 <script>
   import { marked } from 'marked';
   import katex from 'katex';
+  import TurndownService from 'turndown';
 
   marked.setOptions({ gfm: true, breaks: false });
+
+  const turndown = new TurndownService({
+    headingStyle: 'atx',
+    codeBlockStyle: 'fenced',
+    bulletListMarker: '-',
+  });
+
+  turndown.addRule('mathBlock', {
+    filter: (node) =>
+      node.nodeName === 'DIV' && (node as HTMLElement).classList?.contains('math-block-chip'),
+    replacement: (_content, node) => {
+      const tex = (node as HTMLElement).dataset.tex || '';
+      return tex ? `\n\n$$\n${tex.trim()}\n$$\n\n` : '';
+    },
+  });
+
+  turndown.addRule('mathInline', {
+    filter: (node) =>
+      node.nodeName === 'SPAN' && (node as HTMLElement).classList?.contains('math-chip'),
+    replacement: (_content, node) => {
+      const tex = (node as HTMLElement).dataset.tex || '';
+      return tex ? `$${tex.trim()}$` : '';
+    },
+  });
+
+  turndown.addRule('fencedPre', {
+    filter: (node) => node.nodeName === 'PRE',
+    replacement: (_content, node) => {
+      const codeEl = node.querySelector('code');
+      const cls = codeEl?.className || '';
+      const lang = (cls.match(/language-([a-z0-9_+-]+)/i) || [])[1] || '';
+      const raw = (codeEl?.textContent || node.textContent || '').replace(/\n$/, '');
+      return `\n\n\`\`\`${lang}\n${raw}\n\`\`\`\n\n`;
+    },
+  });
+
+  turndown.addRule('gfmTable', {
+    filter: 'table',
+    replacement: (_content, node) => {
+      const rows = Array.from((node as HTMLElement).querySelectorAll('tr')).map((tr) =>
+        Array.from(tr.children).map((cell) => (cell.textContent || '').trim().replace(/\|/g, '\\|'))
+      );
+      if (rows.length === 0) return '';
+      const header = rows[0];
+      const sep = header.map(() => '---');
+      const bodyRows = rows.slice(1);
+      const formatRow = (cols: string[]) => `| ${cols.join(' | ')} |`;
+      return `\n\n${[formatRow(header), formatRow(sep), ...bodyRows.map(formatRow)].join('\n')}\n\n`;
+    },
+  });
 
   const root = document.getElementById('admin-root');
   const API_BASE = root?.dataset.apiBase || '/api/admin';
@@ -433,9 +489,10 @@ const initialConfigJson = JSON.stringify(siteConfig);
   const coverStatusEl = document.getElementById('cover-status')!;
   const coverClearBtn = document.getElementById('cover-clear-btn') as HTMLButtonElement;
   const bodyInput = document.getElementById('art-body') as HTMLTextAreaElement;
+  const visualEditorEl = document.getElementById('visual-editor') as HTMLDivElement;
   const draftCheckbox = document.getElementById('art-draft') as HTMLInputElement;
-  const livePreviewEl = document.getElementById('live-preview')!;
   const workspacePanes = document.getElementById('workspace-panes')!;
+  let editorMode: 'visual' | 'markdown' = 'visual';
   const publishBtn = document.getElementById('publish-btn') as HTMLButtonElement;
   const deleteBtn = document.getElementById('delete-btn') as HTMLButtonElement;
   const imageUploadInput = document.getElementById('image-upload-input') as HTMLInputElement;
@@ -572,6 +629,16 @@ const initialConfigJson = JSON.stringify(siteConfig);
     ].join('\n');
   }
 
+  function createMathChipHtml(tex: string, displayMode: boolean): string {
+    const cleanTex = tex.trim();
+    const rendered = katex.renderToString(cleanTex, { displayMode, throwOnError: false });
+    const escapedTex = escapeHtml(cleanTex);
+    if (displayMode) {
+      return `<div class="math-block-chip" contenteditable="false" data-tex="${escapedTex}" title="Clicca per modificare la formula">${rendered}</div>`;
+    }
+    return `<span class="math-chip" contenteditable="false" data-tex="${escapedTex}" title="Clicca per modificare la formula">${rendered}</span>`;
+  }
+
   function renderPreview() {
     const raw = bodyInput.value || '';
     const mathTokens: string[] = [];
@@ -586,9 +653,9 @@ const initialConfigJson = JSON.stringify(siteConfig);
     // Render $$...$$ display math
     safe = safe.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => {
       try {
-        const html = katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false });
-        const id = mathTokens.push(html) - 1;
-        return `\n\n<div class="katex-preview-block">@@MATH_${id}@@</div>\n\n`;
+        const chip = createMathChipHtml(tex, true);
+        const id = mathTokens.push(chip) - 1;
+        return `\n\n@@MATH_${id}@@\n\n`;
       } catch {
         return _;
       }
@@ -597,8 +664,8 @@ const initialConfigJson = JSON.stringify(siteConfig);
     // Render $...$ inline math
     safe = safe.replace(/(^|[^\\$])\$([^\n$]+?)\$/g, (full, prefix, tex) => {
       try {
-        const html = katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false });
-        const id = mathTokens.push(html) - 1;
+        const chip = createMathChipHtml(tex, false);
+        const id = mathTokens.push(chip) - 1;
         return `${prefix}@@MATH_${id}@@`;
       } catch {
         return full;
@@ -616,7 +683,15 @@ const initialConfigJson = JSON.stringify(siteConfig);
       .replace(/javascript:/gi, '');
     html = html.replace(/@@MATH_(\d+)@@/g, (_, idx) => mathTokens[Number(idx)] || '');
 
-    livePreviewEl.innerHTML = html || '<p class="muted">L’anteprima apparirà qui mentre scrivi...</p>';
+    visualEditorEl.innerHTML = html || '';
+  }
+
+  function syncVisualToMarkdown(): string {
+    if (editorMode === 'visual') {
+      const md = turndown.turndown(visualEditorEl.innerHTML || '').trim();
+      bodyInput.value = md;
+    }
+    return bodyInput.value.trim();
   }
 
   function resetFormForNew() {
@@ -789,6 +864,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
   }
 
   async function saveArticle() {
+    syncVisualToMarkdown();
     const title = titleInput.value.trim();
     const slug = slugify(slugInput.value || title);
     const description = descInput.value.trim();
@@ -964,7 +1040,14 @@ const initialConfigJson = JSON.stringify(siteConfig);
           imageUrl = `/uploads/${slug}/${stamp}-${cleanName}`;
         }
 
-        insertAtCursor(`\n![${file.name.replace(/\.[^.]+$/, '')}](${imageUrl})\n`);
+        if (editorMode === 'visual') {
+          visualEditorEl.focus();
+          const alt = escapeHtml(file.name.replace(/\.[^.]+$/, ''));
+          document.execCommand('insertHTML', false, `<p><img src="${imageUrl}" alt="${alt}" /></p><p><br></p>`);
+          syncVisualToMarkdown();
+        } else {
+          insertAtCursor(`\n![${file.name.replace(/\.[^.]+$/, '')}](${imageUrl})\n`);
+        }
         showBanner('Immagine caricata e inserita nell’articolo!');
       } catch (err: any) {
         showBanner(err?.message || 'Errore upload immagine.', true);
@@ -1126,6 +1209,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
   } | null = null;
 
   async function runAiFormat() {
+    syncVisualToMarkdown();
     const body = bodyInput.value.trim();
     if (body.length < 20) {
       showBanner('Scrivi o incolla almeno qualche riga di testo prima di usare l’AI.', true);
@@ -1201,10 +1285,86 @@ const initialConfigJson = JSON.stringify(siteConfig);
     showBanner('Testo precedente ripristinato.');
   });
 
-  // Formatting toolbar
+  // Click su una formula KaTeX in modalità visuale per modificarla
+  visualEditorEl.addEventListener('click', (e) => {
+    const chip = (e.target as HTMLElement).closest('.math-chip, .math-block-chip') as HTMLElement | null;
+    if (!chip) return;
+    const currentTex = chip.dataset.tex || '';
+    const updated = prompt('Modifica formula LaTeX:', currentTex);
+    if (updated === null) return;
+    const clean = updated.trim();
+    if (!clean) {
+      chip.remove();
+      return;
+    }
+    const isBlock = chip.classList.contains('math-block-chip');
+    chip.dataset.tex = clean;
+    chip.innerHTML = katex.renderToString(clean, { displayMode: isBlock, throwOnError: false });
+  });
+
+  // Formatting toolbar (funziona sia in Visuale stile Word sia in Markdown)
   document.querySelectorAll('.tb-btn[data-insert]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const type = (btn as HTMLElement).dataset.insert;
+
+      if (editorMode === 'visual') {
+        visualEditorEl.focus();
+        switch (type) {
+          case 'h2':
+            document.execCommand('formatBlock', false, 'h2');
+            break;
+          case 'h3':
+            document.execCommand('formatBlock', false, 'h3');
+            break;
+          case 'bold':
+            document.execCommand('bold');
+            break;
+          case 'italic':
+            document.execCommand('italic');
+            break;
+          case 'list':
+            document.execCommand('insertUnorderedList');
+            break;
+          case 'quote':
+            document.execCommand('formatBlock', false, 'blockquote');
+            break;
+          case 'link': {
+            const url = prompt('Inserisci URL del link:', 'https://');
+            if (url) document.execCommand('createLink', false, url);
+            break;
+          }
+          case 'code':
+            document.execCommand(
+              'insertHTML',
+              false,
+              '<pre><code class="language-python"># Codice di esempio\nprint("I Fratelli Cuscinetto")</code></pre><p><br></p>'
+            );
+            break;
+          case 'math-inline': {
+            const tex = prompt('Formula matematica inline (LaTeX):', 'E = mc^2');
+            if (tex && tex.trim()) {
+              document.execCommand('insertHTML', false, `${createMathChipHtml(tex, false)}&nbsp;`);
+            }
+            break;
+          }
+          case 'math-block': {
+            const tex = prompt('Formula matematica centrata (LaTeX):', 'p_0 = \\frac{3F}{2\\pi a b}');
+            if (tex && tex.trim()) {
+              document.execCommand('insertHTML', false, `${createMathChipHtml(tex, true)}<p><br></p>`);
+            }
+            break;
+          }
+          case 'table':
+            document.execCommand(
+              'insertHTML',
+              false,
+              '<table><thead><tr><th>Parametro</th><th>Valore</th><th>Unità</th></tr></thead><tbody><tr><td>Pressione</td><td>1.2</td><td>GPa</td></tr></tbody></table><p><br></p>'
+            );
+            break;
+        }
+        return;
+      }
+
       switch (type) {
         case 'h2':
           insertAtCursor('\n## Titolo sezione\n');
@@ -1243,14 +1403,21 @@ const initialConfigJson = JSON.stringify(siteConfig);
     });
   });
 
-  // View mode tabs
+  // View mode tabs (Visuale / Markdown)
   const viewTabs = document.querySelectorAll('.view-tab[data-view]');
   viewTabs.forEach((tab) => {
     tab.addEventListener('click', () => {
+      const nextMode = ((tab as HTMLElement).dataset.view === 'markdown' ? 'markdown' : 'visual') as 'visual' | 'markdown';
+      if (nextMode === editorMode) return;
+      if (nextMode === 'markdown') {
+        syncVisualToMarkdown();
+      } else {
+        renderPreview();
+      }
+      editorMode = nextMode;
       viewTabs.forEach((t) => t.classList.remove('active'));
       tab.classList.add('active');
-      const mode = (tab as HTMLElement).dataset.view || 'split';
-      workspacePanes.className = `workspace-panes view-${mode}`;
+      workspacePanes.className = `workspace-panes view-${nextMode}`;
     });
   });
 
@@ -1927,26 +2094,61 @@ const initialConfigJson = JSON.stringify(siteConfig);
 
   .workspace-panes {
     display: grid;
+    grid-template-columns: 1fr;
     gap: 1rem;
-    min-height: 460px;
+    min-height: 480px;
   }
 
-  .workspace-panes.view-split {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .workspace-panes.view-write {
-    grid-template-columns: 1fr;
-  }
-  .workspace-panes.view-write .preview-pane {
+  .workspace-panes.view-visual .markdown-input {
     display: none;
   }
 
-  .workspace-panes.view-preview {
-    grid-template-columns: 1fr;
-  }
-  .workspace-panes.view-preview .markdown-input {
+  .workspace-panes.view-markdown .visual-editor {
     display: none;
+  }
+
+  .visual-editor {
+    max-width: none;
+    min-height: 480px;
+    padding: 1.5rem 1.75rem;
+    border-radius: var(--radius-control);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    font-size: 1.04rem;
+    outline: none;
+  }
+
+  .visual-editor:focus {
+    border-color: var(--accent);
+  }
+
+  .visual-editor:empty::before {
+    content: attr(data-placeholder);
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+
+  :global(.math-chip) {
+    display: inline-block;
+    padding: 0.08rem 0.35rem;
+    border-radius: 6px;
+    background: var(--accent-soft);
+    cursor: pointer;
+  }
+
+  :global(.math-block-chip) {
+    margin: 1.25rem 0;
+    padding: 0.9rem 1rem;
+    border-radius: var(--radius-control);
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    text-align: center;
+    cursor: pointer;
+  }
+
+  :global(.math-chip:hover),
+  :global(.math-block-chip:hover) {
+    outline: 1.5px solid var(--accent);
   }
 
   .markdown-input {
