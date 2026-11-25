@@ -14,21 +14,36 @@ interface Props {
 const { slug, coverImage, title, category, variant = 'card' } = Astro.props;
 const cleanSlug = slug ? slug.split('/').at(-1) : '';
 const uid = `${(cleanSlug || 'cover').replace(/[^a-z0-9-]/gi, '')}-${variant}`;
-const autoCoverExists = cleanSlug
-  ? fs.existsSync(path.resolve('public/covers', `${cleanSlug}.svg`))
-  : false;
+const autoCoverExt = cleanSlug
+  ? (['mp4', 'webm', 'svg'] as const).find((ext) =>
+      fs.existsSync(path.resolve('public/covers', `${cleanSlug}.${ext}`))
+    )
+  : undefined;
 
 const resolvedSrc = coverImage
   ? coverImage.startsWith('http://') || coverImage.startsWith('https://')
     ? coverImage
     : withBase(coverImage)
-  : autoCoverExists
-    ? withBase(`/covers/${cleanSlug}.svg`)
+  : autoCoverExt
+    ? withBase(`/covers/${cleanSlug}.${autoCoverExt}`)
     : null;
+
+const isVideoCover = Boolean(resolvedSrc && /\.(mp4|webm)(?:[?#].*)?$/i.test(resolvedSrc));
 ---
 
 <div class:list={['article-cover', `cover-${variant}`, `cat-${category === 'Meccanica' ? 'mech' : category === 'AI & Software' ? 'ai' : 'hybrid'}`]}>
-  {resolvedSrc ? (
+  {resolvedSrc && isVideoCover ? (
+    <video
+      class="cover-video"
+      src={resolvedSrc}
+      muted
+      loop
+      playsinline
+      preload={variant === 'featured' ? 'auto' : 'metadata'}
+      aria-label={title}
+      data-autoplay-cover
+    />
+  ) : resolvedSrc ? (
     <img src={resolvedSrc} alt={title} loading={variant === 'featured' ? 'eager' : 'lazy'} decoding="async" />
   ) : category === 'Meccanica' ? (
     <svg viewBox="0 0 640 360" fill="none" aria-hidden="true" class="cover-svg">
@@ -124,15 +139,33 @@ const resolvedSrc = coverImage
   }
 
   .article-cover img,
+  .cover-video,
   .cover-svg {
+    display: block;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.6s var(--ease-ive);
+    will-change: transform;
+    transition: transform 0.55s var(--ease-ive);
+  }
+
+  :global(.glow-card.is-tilting) .article-cover img,
+  :global(.glow-card.is-tilting) .cover-video,
+  :global(.glow-card.is-tilting) .cover-svg {
+    transition: transform 0.14s ease-out;
   }
 
   :global(.glow-card:hover) .article-cover img,
+  :global(.glow-card:hover) .cover-video,
   :global(.glow-card:hover) .cover-svg {
-    transform: scale(1.035);
+    transform: translate3d(var(--px, 0px), var(--py, 0px), 0) scale(1.045);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :global(.glow-card:hover) .article-cover img,
+    :global(.glow-card:hover) .cover-video,
+    :global(.glow-card:hover) .cover-svg {
+      transform: none;
+    }
   }
 </style>

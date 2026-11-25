@@ -148,11 +148,11 @@ const initialConfigJson = JSON.stringify(siteConfig);
             </label>
 
             <div class="field">
-              <span>Copertina (opzionale)</span>
+              <span>Copertina (immagine o video 3D .mp4/.webm)</span>
               <div class="cover-upload-row">
                 <label class="btn btn-secondary btn-sm">
                   Carica copertina
-                  <input id="cover-upload-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" hidden />
+                  <input id="cover-upload-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,video/mp4,video/webm,.mp4,.webm" hidden />
                 </label>
                 <span id="cover-status" class="muted small">Auto (grafica tecnica)</span>
                 <button type="button" id="cover-clear-btn" class="btn-icon" hidden title="Rimuovi copertina">×</button>
@@ -1048,7 +1048,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
         coverInput.value = data.url;
         coverStatusEl.textContent = file.name;
         coverClearBtn.hidden = false;
-        showBanner('Immagine di copertina caricata!');
+        showBanner(/\.(mp4|webm)$/i.test(file.name) ? 'Copertina video 3D caricata!' : 'Immagine di copertina caricata!');
       } catch (err: any) {
         coverStatusEl.textContent = 'Auto (grafica tecnica)';
         showBanner(err?.message || 'Errore upload copertina.', true);
