@@ -146,46 +146,17 @@ const languageSwitchHref = locale === 'it' ? '/en/' : '/';
     const authorSelect = document.getElementById('author-filter');
     const pills = Array.from(document.querySelectorAll('.pill[data-cat]'));
 
-    // Tilt 3D prospettico + riflesso speculare + parallasse copertina (solo puntatore preciso)
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-
-    if (finePointer) {
-      document.querySelectorAll('.glow-card').forEach((card) => {
-        const maxTilt = card.classList.contains('featured-card') ? 2.6 : 4.5;
-        const maxParallax = card.classList.contains('featured-card') ? 7 : 6;
-
-        card.addEventListener('pointerenter', () => {
-          if (!reduceMotion) card.classList.add('is-tilting');
-        });
-
-        card.addEventListener('pointermove', (e) => {
-          const rect = card.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          const y = e.clientY - rect.top;
-          card.style.setProperty('--mx', `${x}px`);
-          card.style.setProperty('--my', `${y}px`);
-
-          if (reduceMotion || !rect.width || !rect.height) return;
-          const nx = (x / rect.width) * 2 - 1;
-          const ny = (y / rect.height) * 2 - 1;
-          card.style.setProperty('--rx', `${(-ny * maxTilt).toFixed(2)}deg`);
-          card.style.setProperty('--ry', `${(nx * maxTilt).toFixed(2)}deg`);
-          card.style.setProperty('--px', `${(-nx * maxParallax).toFixed(2)}px`);
-          card.style.setProperty('--py', `${(-ny * maxParallax * 0.7).toFixed(2)}px`);
-        });
-
-        card.addEventListener('pointerleave', () => {
-          card.classList.remove('is-tilting');
-          card.style.setProperty('--rx', '0deg');
-          card.style.setProperty('--ry', '0deg');
-          card.style.setProperty('--px', '0px');
-          card.style.setProperty('--py', '0px');
-        });
+    // Illuminazione dinamica che segue il cursore sulle card
+    document.querySelectorAll('.glow-card').forEach((card) => {
+      card.addEventListener('pointermove', (e) => {
+        const rect = card.getBoundingClientRect();
+        card.style.setProperty('--mx', `${e.clientX - rect.left}px`);
+        card.style.setProperty('--my', `${e.clientY - rect.top}px`);
       });
-    }
+    });
 
     // Copertine video 3D (.mp4/.webm): riproduzione solo quando visibili in viewport
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const coverVideos = Array.from(document.querySelectorAll('video[data-autoplay-cover]'));
     if (coverVideos.length > 0 && !reduceMotion && 'IntersectionObserver' in window) {
       const videoObserver = new IntersectionObserver(
@@ -273,18 +244,8 @@ const languageSwitchHref = locale === 'it' ? '/en/' : '/';
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-sm);
     cursor: pointer;
-    transform-style: preserve-3d;
-    will-change: transform;
     transition:
-      transform 0.5s var(--ease-ive),
-      box-shadow 0.35s var(--ease-ive),
-      border-color 0.35s var(--ease-ive),
-      background-color 0.35s var(--ease-ive);
-  }
-
-  .featured-card.is-tilting {
-    transition:
-      transform 0.12s ease-out,
+      transform 0.35s var(--ease-ive),
       box-shadow 0.35s var(--ease-ive),
       border-color 0.35s var(--ease-ive),
       background-color 0.35s var(--ease-ive);
@@ -296,34 +257,22 @@ const languageSwitchHref = locale === 'it' ? '/en/' : '/';
     inset: 0;
     pointer-events: none;
     opacity: 0;
-    background:
-      radial-gradient(
-        420px circle at var(--mx, 50%) var(--my, 50%),
-        rgba(255, 255, 255, 0.22),
-        transparent 50%
-      ),
-      radial-gradient(
-        580px circle at var(--mx, 50%) var(--my, 50%),
-        color-mix(in srgb, var(--accent) 14%, transparent),
-        transparent 68%
-      );
+    background: radial-gradient(
+      560px circle at var(--mx, 50%) var(--my, 50%),
+      color-mix(in srgb, var(--accent) 14%, transparent),
+      transparent 65%
+    );
     transition: opacity 0.35s var(--ease-ive);
     z-index: 2;
   }
 
   .featured-card:hover {
-    transform: perspective(1200px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-5px);
+    transform: translateY(-4px);
     border-color: color-mix(in srgb, var(--accent) 55%, var(--border-strong));
     box-shadow:
       0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent),
-      0 16px 42px color-mix(in srgb, var(--accent) 16%, transparent),
+      0 14px 38px color-mix(in srgb, var(--accent) 16%, transparent),
       var(--shadow-md);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .featured-card:hover {
-      transform: translateY(-2px);
-    }
   }
 
   .featured-card:hover::before {

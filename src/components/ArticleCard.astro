@@ -74,17 +74,8 @@ const readingTime = estimateReadingTime(body);
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-sm);
     cursor: pointer;
-    transform-style: preserve-3d;
-    will-change: transform;
     transition:
-      transform 0.5s var(--ease-ive),
-      box-shadow 0.35s var(--ease-ive),
-      border-color 0.35s var(--ease-ive);
-  }
-
-  .article-card.is-tilting {
-    transition:
-      transform 0.12s ease-out,
+      transform 0.35s var(--ease-ive),
       box-shadow 0.35s var(--ease-ive),
       border-color 0.35s var(--ease-ive);
   }
@@ -95,34 +86,22 @@ const readingTime = estimateReadingTime(body);
     inset: 0;
     pointer-events: none;
     opacity: 0;
-    background:
-      radial-gradient(
-        340px circle at var(--mx, 50%) var(--my, 50%),
-        rgba(255, 255, 255, 0.24),
-        transparent 52%
-      ),
-      radial-gradient(
-        420px circle at var(--mx, 50%) var(--my, 50%),
-        color-mix(in srgb, var(--accent) 16%, transparent),
-        transparent 68%
-      );
+    background: radial-gradient(
+      380px circle at var(--mx, 50%) var(--my, 50%),
+      color-mix(in srgb, var(--accent) 16%, transparent),
+      transparent 65%
+    );
     transition: opacity 0.35s var(--ease-ive);
     z-index: 2;
   }
 
   .article-card:hover {
-    transform: perspective(1050px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-5px);
+    transform: translateY(-4px);
     border-color: color-mix(in srgb, var(--accent) 55%, var(--border-strong));
     box-shadow:
       0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent),
-      0 14px 36px color-mix(in srgb, var(--accent) 16%, transparent),
+      0 12px 32px color-mix(in srgb, var(--accent) 16%, transparent),
       var(--shadow-md);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .article-card:hover {
-      transform: translateY(-2px);
-    }
   }
 
   .article-card:hover::before {
