@@ -1006,8 +1006,11 @@ const initialConfigJson = JSON.stringify(siteConfig);
   cfLoginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     clearError();
+    const loginBtn = document.getElementById('cf-login-btn') as HTMLButtonElement;
     const author = (document.getElementById('login-author') as HTMLInputElement).value.trim();
     const password = (document.getElementById('login-password') as HTMLInputElement).value;
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Accesso in corso...';
     try {
       const res = await fetch(`${API_BASE}/login`, {
         method: 'POST',
@@ -1023,6 +1026,9 @@ const initialConfigJson = JSON.stringify(siteConfig);
       enterStudio(data.author);
     } catch (err: any) {
       showError(err?.message || 'Errore di autenticazione.');
+    } finally {
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Accedi';
     }
   });
 
