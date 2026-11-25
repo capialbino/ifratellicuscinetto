@@ -164,61 +164,125 @@ const initialConfigJson = JSON.stringify(siteConfig);
             <input id="art-desc" type="hidden" />
           </div>
 
-          <!-- Toolbar & Preview switcher -->
-          <div class="editor-toolbar-wrap">
-            <div class="format-toolbar" role="toolbar" aria-label="Strumenti di formattazione">
-              <button type="button" class="tb-btn" data-insert="p" title="Paragrafo normale">P</button>
-              <button type="button" class="tb-btn" data-insert="h2" title="Titolo sezione">H2</button>
-              <button type="button" class="tb-btn" data-insert="h3" title="Sottotitolo">H3</button>
-              <button type="button" class="tb-btn" data-insert="bold" title="Grassetto"><strong>B</strong></button>
-              <button type="button" class="tb-btn" data-insert="italic" title="Corsivo"><em>I</em></button>
-              <button type="button" class="tb-btn" data-insert="list" title="Elenco puntato">• Elenco</button>
-              <button type="button" class="tb-btn" data-insert="quote" title="Nota / Citazione">❝ Nota</button>
-              <button type="button" class="tb-btn" data-insert="link" title="Link">🔗 Link</button>
-              <button type="button" class="tb-btn" data-insert="code" title="Blocco codice">{`</>`}</button>
-              <button type="button" class="tb-btn" data-insert="math-inline" title="Formula inline">$x$</button>
-              <button type="button" class="tb-btn" data-insert="math-block" title="Formula centrata">$$ ∑ $$</button>
-              <button type="button" class="tb-btn" data-insert="table" title="Tabella">⊞ Tabella</button>
-              <label class="tb-btn tb-upload" title="Carica immagine dal PC">
-                🖼 Immagine
-                <input id="image-upload-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" hidden />
-              </label>
-              <label class="tb-btn tb-upload" title="Carica modello CAD 3D (.glb, max 10 MB)">
-                🧊 3D (.glb)
-                <input id="model-upload-input" type="file" accept=".glb,model/gltf-binary" hidden />
-              </label>
-              <label class="tb-btn tb-upload" title="Carica animazione video Manim (.mp4 o .webm, max 10 MB)">
-                🎬 Video
-                <input id="video-upload-input" type="file" accept="video/mp4,video/webm,.mp4,.webm" hidden />
-              </label>
-              <button type="button" id="ai-format-btn" class="tb-btn tb-ai" title="Impagina in Markdown e converte le formule in LaTeX">
-                ✨ Formatta &amp; LaTeX
-              </button>
-              <button type="button" id="ai-undo-btn" class="tb-btn" hidden title="Ripristina il testo prima dell’ultima modifica AI">
-                ↩ Ripristina
-              </button>
+          <!-- Toolbar stile Word + Area di scrittura unificata -->
+          <div class="word-editor-shell">
+            <div class="editor-toolbar-wrap">
+              <div class="format-toolbar" role="toolbar" aria-label="Strumenti di formattazione">
+                <!-- Cronologia -->
+                <div class="tb-group" role="group" aria-label="Cronologia">
+                  <button type="button" class="tb-btn tb-icon" data-insert="undo" title="Annulla (Ctrl+Z)" aria-label="Annulla">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+                  </button>
+                  <button type="button" class="tb-btn tb-icon" data-insert="redo" title="Ripeti (Ctrl+Y)" aria-label="Ripeti">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+                  </button>
+                </div>
+
+                <span class="tb-sep" aria-hidden="true"></span>
+
+                <!-- Stile paragrafo (stile Word / Google Docs) -->
+                <div class="tb-group" role="group" aria-label="Stile testo">
+                  <select id="block-style-select" class="tb-select" title="Stile paragrafo" aria-label="Stile paragrafo">
+                    <option value="p">Testo normale</option>
+                    <option value="h2">Titolo</option>
+                    <option value="h3">Sottotitolo</option>
+                    <option value="blockquote">Citazione / Nota</option>
+                  </select>
+                </div>
+
+                <span class="tb-sep" aria-hidden="true"></span>
+
+                <!-- Formattazione carattere -->
+                <div class="tb-group" role="group" aria-label="Carattere">
+                  <button type="button" class="tb-btn tb-char" data-insert="bold" data-cmd="bold" title="Grassetto (Ctrl+B)" aria-label="Grassetto"><strong>B</strong></button>
+                  <button type="button" class="tb-btn tb-char" data-insert="italic" data-cmd="italic" title="Corsivo (Ctrl+I)" aria-label="Corsivo"><em>I</em></button>
+                  <button type="button" class="tb-btn tb-char" data-insert="strike" data-cmd="strikeThrough" title="Barrato" aria-label="Barrato"><s>S</s></button>
+                </div>
+
+                <span class="tb-sep" aria-hidden="true"></span>
+
+                <!-- Elenchi -->
+                <div class="tb-group" role="group" aria-label="Elenchi">
+                  <button type="button" class="tb-btn tb-icon" data-insert="list" data-cmd="insertUnorderedList" title="Elenco puntato" aria-label="Elenco puntato">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>
+                  </button>
+                  <button type="button" class="tb-btn tb-icon" data-insert="olist" data-cmd="insertOrderedList" title="Elenco numerato" aria-label="Elenco numerato">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>
+                  </button>
+                </div>
+
+                <span class="tb-sep" aria-hidden="true"></span>
+
+                <!-- Inserisci elementi -->
+                <div class="tb-group" role="group" aria-label="Inserisci">
+                  <button type="button" class="tb-btn tb-icon" data-insert="link" title="Inserisci collegamento (Link)" aria-label="Link">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                  </button>
+                  <button type="button" class="tb-btn tb-icon" data-insert="table" title="Inserisci tabella" aria-label="Tabella">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+                  </button>
+                  <button type="button" class="tb-btn tb-icon" data-insert="code" title="Blocco codice" aria-label="Codice">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                  </button>
+                  <button type="button" class="tb-btn tb-label" data-insert="math-inline" title="Formula matematica nel testo">f(x)</button>
+                  <button type="button" class="tb-btn tb-label" data-insert="math-block" title="Equazione centrata">∑ Eq.</button>
+                </div>
+
+                <span class="tb-sep" aria-hidden="true"></span>
+
+                <!-- Media -->
+                <div class="tb-group" role="group" aria-label="Media">
+                  <label class="tb-btn tb-label tb-upload" title="Inserisci immagine dal PC">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    <span>Immagine</span>
+                    <input id="image-upload-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" hidden />
+                  </label>
+                  <label class="tb-btn tb-label tb-upload" title="Inserisci modello CAD 3D (.glb, max 10 MB)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                    <span>3D</span>
+                    <input id="model-upload-input" type="file" accept=".glb,model/gltf-binary" hidden />
+                  </label>
+                  <label class="tb-btn tb-label tb-upload" title="Inserisci animazione video (.mp4 o .webm, max 10 MB)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+                    <span>Video</span>
+                    <input id="video-upload-input" type="file" accept="video/mp4,video/webm,.mp4,.webm" hidden />
+                  </label>
+                </div>
+
+                <span class="tb-sep" aria-hidden="true"></span>
+
+                <!-- Assistente AI -->
+                <div class="tb-group" role="group" aria-label="Assistente AI">
+                  <button type="button" id="ai-format-btn" class="tb-btn tb-label tb-ai" title="Sistema impaginazione e formule LaTeX con l'AI">
+                    ✨ Formatta &amp; LaTeX
+                  </button>
+                  <button type="button" id="ai-undo-btn" class="tb-btn tb-label" hidden title="Ripristina il testo prima dell’ultima modifica AI">
+                    ↩ Ripristina
+                  </button>
+                </div>
+              </div>
+
+              <div class="view-tabs" role="tablist">
+                <button type="button" class="view-tab active" data-view="visual">Visuale</button>
+                <button type="button" class="view-tab" data-view="markdown">Markdown</button>
+              </div>
             </div>
 
-            <div class="view-tabs" role="tablist">
-              <button type="button" class="view-tab active" data-view="visual">Visuale</button>
-              <button type="button" class="view-tab" data-view="markdown">Markdown</button>
+            <div id="workspace-panes" class="workspace-panes view-visual">
+              <div
+                id="visual-editor"
+                class="visual-editor prose"
+                contenteditable="true"
+                spellcheck="true"
+                data-placeholder="Inizia a scrivere qui come su Word... Seleziona una parola per metterla in grassetto, corsivo o cambiare stile dal menu in alto."
+              ></div>
+
+              <textarea
+                id="art-body"
+                class="markdown-input"
+                placeholder="Modalità Markdown avanzata..."
+              ></textarea>
             </div>
-          </div>
-
-          <div id="workspace-panes" class="workspace-panes view-visual">
-            <div
-              id="visual-editor"
-              class="visual-editor prose"
-              contenteditable="true"
-              spellcheck="true"
-              data-placeholder="Inizia a scrivere qui come su Word o Notion... Puoi usare grassetto, titoli, elenchi, immagini e formule matematiche senza mai toccare codice."
-            ></div>
-
-            <textarea
-              id="art-body"
-              class="markdown-input"
-              placeholder="Modalità Markdown avanzata..."
-            ></textarea>
           </div>
 
           <div class="publish-bar">
@@ -1186,6 +1250,64 @@ const initialConfigJson = JSON.stringify(siteConfig);
     chip.innerHTML = katex.renderToString(clean, { displayMode: isBlock, throwOnError: false });
   });
 
+  // Dropdown stile paragrafo (stile Word: Testo normale / Titolo / Sottotitolo / Citazione)
+  const blockStyleSelect = document.getElementById('block-style-select') as HTMLSelectElement | null;
+  blockStyleSelect?.addEventListener('change', () => {
+    const tag = blockStyleSelect.value;
+    if (editorMode === 'visual') {
+      visualEditorEl.focus();
+      document.execCommand('formatBlock', false, tag);
+      updateToolbarState();
+      return;
+    }
+    if (tag === 'h2') insertAtCursor('\n## Titolo sezione\n');
+    else if (tag === 'h3') insertAtCursor('\n### Sottotitolo\n');
+    else if (tag === 'blockquote') insertAtCursor('\n> **Nota tecnica:** scrivi qui il punto chiave.\n');
+    else insertAtCursor('\n\n');
+    blockStyleSelect.value = 'p';
+  });
+
+  // Aggiorna stato attivo dei pulsanti (B, I, S, Elenchi, Stile testo) come su Word
+  function updateToolbarState() {
+    if (editorMode !== 'visual') return;
+    document.querySelectorAll<HTMLButtonElement>('.tb-btn[data-cmd]').forEach((btn) => {
+      const cmd = btn.dataset.cmd || '';
+      let active = false;
+      try {
+        active = document.queryCommandState(cmd);
+      } catch {
+        active = false;
+      }
+      btn.classList.toggle('is-active', active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+
+    if (blockStyleSelect) {
+      const sel = window.getSelection();
+      let node = sel?.anchorNode as Node | null;
+      let detected = 'p';
+      while (node && node !== visualEditorEl) {
+        if (node.nodeType === 1) {
+          const tag = (node as HTMLElement).tagName.toLowerCase();
+          if (tag === 'h2' || tag === 'h3' || tag === 'blockquote') {
+            detected = tag;
+            break;
+          }
+        }
+        node = node.parentNode;
+      }
+      if (blockStyleSelect.value !== detected) {
+        blockStyleSelect.value = detected;
+      }
+    }
+  }
+
+  document.addEventListener('selectionchange', () => {
+    if (document.activeElement === visualEditorEl) updateToolbarState();
+  });
+  visualEditorEl.addEventListener('keyup', updateToolbarState);
+  visualEditorEl.addEventListener('mouseup', updateToolbarState);
+
   // Formatting toolbar (funziona sia in Visuale stile Word sia in Markdown)
   document.querySelectorAll('.tb-btn[data-insert]').forEach((btn) => {
     btn.addEventListener('mousedown', (e) => e.preventDefault());
@@ -1195,6 +1317,12 @@ const initialConfigJson = JSON.stringify(siteConfig);
       if (editorMode === 'visual') {
         visualEditorEl.focus();
         switch (type) {
+          case 'undo':
+            document.execCommand('undo');
+            break;
+          case 'redo':
+            document.execCommand('redo');
+            break;
           case 'p':
             document.execCommand('formatBlock', false, 'p');
             break;
@@ -1210,8 +1338,14 @@ const initialConfigJson = JSON.stringify(siteConfig);
           case 'italic':
             document.execCommand('italic');
             break;
+          case 'strike':
+            document.execCommand('strikeThrough');
+            break;
           case 'list':
             document.execCommand('insertUnorderedList');
+            break;
+          case 'olist':
+            document.execCommand('insertOrderedList');
             break;
           case 'quote':
             document.execCommand('formatBlock', false, 'blockquote');
@@ -1257,10 +1391,17 @@ const initialConfigJson = JSON.stringify(siteConfig);
             );
             break;
         }
+        updateToolbarState();
         return;
       }
 
       switch (type) {
+        case 'undo':
+          document.execCommand('undo');
+          break;
+        case 'redo':
+          document.execCommand('redo');
+          break;
         case 'p':
           insertAtCursor('\n\n');
           break;
@@ -1276,8 +1417,14 @@ const initialConfigJson = JSON.stringify(siteConfig);
         case 'italic':
           insertAtCursor('testo in corsivo', '*', '*');
           break;
+        case 'strike':
+          insertAtCursor('testo barrato', '~~', '~~');
+          break;
         case 'list':
           insertAtCursor('\n- Primo punto\n- Secondo punto\n');
+          break;
+        case 'olist':
+          insertAtCursor('\n1. Primo punto\n2. Secondo punto\n');
           break;
         case 'quote':
           insertAtCursor('\n> **Nota tecnica:** scrivi qui il punto chiave.\n');
@@ -1868,43 +2015,129 @@ const initialConfigJson = JSON.stringify(siteConfig);
     grid-column: 1 / -1;
   }
 
+  /* Unified Word-like document editor shell */
+  .word-editor-shell {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--bg);
+    overflow: hidden;
+    transition: border-color 0.2s var(--ease-ive);
+  }
+
+  .word-editor-shell:focus-within {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--border-strong));
+  }
+
   .editor-toolbar-wrap {
+    position: sticky;
+    top: 56px;
+    z-index: 10;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 0.65rem;
-    padding: 0.55rem;
-    background: var(--bg-subtle);
-    border: 1px solid var(--border);
-    border-radius: 12px;
+    gap: 0.5rem;
+    padding: 0.5rem 0.7rem;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border);
   }
 
   .format-toolbar {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.35rem;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .tb-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+  }
+
+  .tb-sep {
+    width: 1px;
+    height: 20px;
+    margin: 0 0.28rem;
+    background: var(--border-strong);
+    opacity: 0.55;
+  }
+
+  .tb-select {
+    height: 30px;
+    padding: 0 0.55rem;
+    border-radius: 7px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .tb-select:hover,
+  .tb-select:focus {
+    background: var(--bg-subtle);
+    border-color: var(--border);
+    outline: none;
   }
 
   .tb-btn {
-    padding: 0.32rem 0.55rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    height: 30px;
+    padding: 0 0.5rem;
     border-radius: 7px;
-    border: 1px solid var(--border);
-    background: var(--bg-elevated);
+    border: 1px solid transparent;
+    background: transparent;
     color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 0.76rem;
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    font-weight: 500;
     cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .tb-btn.tb-icon {
+    width: 30px;
+    padding: 0;
+  }
+
+  .tb-btn.tb-char {
+    width: 30px;
+    padding: 0;
+    font-family: Georgia, Cambria, serif;
+    font-size: 0.92rem;
+  }
+
+  .tb-btn.tb-label {
+    padding: 0 0.55rem;
+    font-size: 0.78rem;
   }
 
   .tb-btn:hover {
-    border-color: var(--accent);
+    background: var(--bg-subtle);
+  }
+
+  .tb-btn.is-active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
   }
 
   .tb-ai {
     color: var(--accent);
-    border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+    border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
     background: var(--accent-soft);
+    font-weight: 600;
+  }
+
+  .tb-ai:hover {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
   }
 
   .cover-upload-row {
@@ -1921,29 +2154,34 @@ const initialConfigJson = JSON.stringify(siteConfig);
 
   .view-tabs {
     display: inline-flex;
+    padding: 2px;
+    background: var(--bg-subtle);
     border: 1px solid var(--border);
     border-radius: 8px;
-    overflow: hidden;
   }
 
   .view-tab {
-    padding: 0.32rem 0.7rem;
+    padding: 0.24rem 0.65rem;
     border: 0;
-    background: var(--bg-elevated);
+    border-radius: 6px;
+    background: transparent;
     color: var(--text-muted);
-    font-size: 0.8rem;
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    font-weight: 500;
     cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
   }
 
   .view-tab.active {
-    background: var(--text);
-    color: var(--bg);
+    background: var(--bg-elevated);
+    color: var(--text);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
   }
 
   .workspace-panes {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 1rem;
     min-height: 480px;
   }
 
@@ -1957,17 +2195,12 @@ const initialConfigJson = JSON.stringify(siteConfig);
 
   .visual-editor {
     max-width: none;
-    min-height: 480px;
-    padding: 1.5rem 1.75rem;
-    border-radius: var(--radius-control);
-    border: 1px solid var(--border);
+    min-height: 500px;
+    padding: 1.75rem 2.1rem;
+    border: 0;
     background: var(--bg);
     font-size: 1.04rem;
     outline: none;
-  }
-
-  .visual-editor:focus {
-    border-color: var(--accent);
   }
 
   .visual-editor:empty::before {
@@ -2001,16 +2234,16 @@ const initialConfigJson = JSON.stringify(siteConfig);
 
   .markdown-input {
     width: 100%;
-    min-height: 460px;
-    padding: 1rem;
-    border-radius: 12px;
-    border: 1px solid var(--border);
+    min-height: 500px;
+    padding: 1.25rem 1.5rem;
+    border: 0;
     background: var(--bg);
     color: var(--text);
     font-family: var(--font-mono);
     font-size: 0.88rem;
     line-height: 1.6;
     resize: vertical;
+    outline: none;
   }
 
   .preview-pane {
