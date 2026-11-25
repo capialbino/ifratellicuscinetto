@@ -1,0 +1,26 @@
+---
+import { getCollection } from 'astro:content';
+import ArticlePage from '../../../components/ArticlePage.astro';
+
+export async function getStaticPaths() {
+  const allArticles = await getCollection('articles', ({ data }) => !data.draft);
+  const italianSlugs = new Set(
+    allArticles
+      .filter((article) => article.data.language === 'it')
+      .map((article) => article.id.split('/').at(-1) ?? article.id)
+  );
+  return allArticles
+    .filter((article) => article.data.language === 'en')
+    .map((article) => {
+      const slug = article.id.split('/').at(-1) ?? article.id;
+      return {
+        params: { slug },
+        props: { article, languageSwitchHref: italianSlugs.has(slug) ? `/articoli/${slug}` : '/' },
+      };
+    });
+}
+
+const { article, languageSwitchHref } = Astro.props;
+---
+
+<ArticlePage article={article} locale="en" languageSwitchHref={languageSwitchHref} />

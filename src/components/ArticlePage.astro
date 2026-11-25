@@ -1,0 +1,332 @@
+---
+import { render } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getAuthor } from '../data/authors';
+import { CATEGORY_LABELS, CATEGORY_META, estimateReadingTime, formatDate, LEVEL_LABELS, type Locale } from '../utils/articles';
+import { withBase } from '../utils/paths';
+
+interface Props {
+  article: import('astro:content').CollectionEntry<'articles'>;
+  locale: Locale;
+  languageSwitchHref: string;
+}
+
+const { article, locale, languageSwitchHref } = Astro.props;
+const { Content, headings } = await render(article);
+const author = getAuthor(article.data.author, locale);
+const catMeta = CATEGORY_META[article.data.category];
+const readingTime = estimateReadingTime(article.body);
+const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+---
+
+<BaseLayout
+  title={`${article.data.title} — I Fratelli Cuscinetto`}
+  description={article.data.description}
+  activeNav="articoli"
+  locale={locale}
+  languageSwitchHref={languageSwitchHref}
+>
+  <article class="article-page">
+    <header class="article-hero engineering-grid">
+      <div class="container hero-wrap">
+        <a href={withBase(locale === 'it' ? '/' : '/en/')} class="back-link">{locale === 'it' ? '← Torna agli articoli' : '← Back to articles'}</a>
+
+        <div class="article-badges">
+          <span class={`badge ${catMeta.badgeClass}`}>{CATEGORY_LABELS[locale][article.data.category]}</span>
+          <span class="badge badge-level">{LEVEL_LABELS[locale][article.data.level]}</span>
+        </div>
+
+        <h1 class="article-title">{article.data.title}</h1>
+        <p class="article-subtitle">{article.data.description}</p>
+
+        <div class="article-meta-bar">
+          <div class="author-box">
+            <span class="avatar-lg" style={`background:${author.accentColor}`}>
+              {author.initials}
+            </span>
+            <div>
+              <div class="author-box-name">{author.name}</div>
+              <div class="author-box-role">{author.role} · {author.discipline}</div>
+            </div>
+          </div>
+
+          <div class="date-box">
+            <time datetime={article.data.pubDate.toISOString()}>
+              {formatDate(article.data.pubDate, locale)}
+            </time>
+            <span>·</span>
+            <span>{readingTime} {locale === 'it' ? 'min di lettura' : 'min read'}</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="container article-layout">
+      <div class="prose article-content">
+        <Content />
+
+        {article.data.tags.length > 0 && (
+          <div class="article-tags">
+            {article.data.tags.map((tag) => (
+              <span class="tag-chip">#{tag}</span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {tocHeadings.length > 0 && (
+        <aside class="toc-sidebar" aria-label={locale === 'it' ? 'Indice dell’articolo' : 'Article contents'}>
+          <div class="toc-box">
+            <div class="toc-title">{locale === 'it' ? 'Indice' : 'Contents'}</div>
+            <ul class="toc-list">
+              {tocHeadings.map((h) => (
+                <li class:list={['toc-item', { 'toc-sub': h.depth === 3 }]}>
+                  <a href={`#${h.slug}`}>{h.text}</a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </aside>
+      )}
+    </div>
+  </article>
+</BaseLayout>
+
+<script is:inline>
+  (() => {
+    const blocks = document.querySelectorAll('.prose pre');
+    for (const pre of blocks) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'copy-code-btn';
+      const copyLabel = document.documentElement.lang === 'en' ? 'Copy' : 'Copia';
+      const copiedLabel = document.documentElement.lang === 'en' ? 'Copied!' : 'Copiato!';
+      btn.textContent = copyLabel;
+      btn.addEventListener('click', async () => {
+        const text = pre.querySelector('code')?.innerText || pre.innerText;
+        await navigator.clipboard.writeText(text);
+        btn.textContent = copiedLabel;
+        setTimeout(() => (btn.textContent = copyLabel), 1600);
+      });
+      pre.appendChild(btn);
+    }
+  })();
+</script>
+
+<style>
+  .article-hero {
+    border-bottom: 1px solid var(--border);
+    padding: 2.5rem 0 2.5rem;
+  }
+
+  .hero-wrap {
+    max-width: 860px;
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 1.25rem;
+  }
+
+  .back-link:hover {
+    color: var(--accent);
+  }
+
+  .article-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .article-title {
+    margin: 0 0 0.8rem;
+    font-size: clamp(1.9rem, 3.8vw, 2.85rem);
+    line-height: 1.12;
+    letter-spacing: -0.03em;
+    overflow-wrap: anywhere;
+  }
+
+  .article-subtitle {
+    margin: 0 0 1.75rem;
+    font-size: 1.15rem;
+    color: var(--text-muted);
+    line-height: 1.55;
+  }
+
+  .article-meta-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .author-box {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .avatar-lg {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .author-box-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+
+  .author-box-role {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+
+  .date-box {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+
+  .article-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 250px;
+    gap: 3rem;
+    padding-top: 2.5rem;
+    align-items: start;
+  }
+
+  .article-content {
+    min-width: 0;
+  }
+
+  .article-tags {
+    margin-top: 2.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .tag-chip {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    background: var(--bg-subtle);
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+  }
+
+  .toc-sidebar {
+    position: sticky;
+    top: 90px;
+  }
+
+  .toc-box {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.1rem 1.2rem;
+  }
+
+  .toc-title {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+  }
+
+  .toc-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    font-size: 0.85rem;
+  }
+
+  .toc-item a {
+    color: var(--text-muted);
+    line-height: 1.35;
+    display: block;
+  }
+
+  .toc-item a:hover {
+    color: var(--accent);
+  }
+
+  .toc-sub {
+    padding-left: 0.85rem;
+    font-size: 0.8rem;
+  }
+
+  :global(.copy-code-btn) {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    padding: 0.25rem 0.55rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  :global(.copy-code-btn:hover) {
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+
+  @media (max-width: 960px) {
+    .article-layout {
+      grid-template-columns: 1fr;
+    }
+    .toc-sidebar {
+      display: none;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .article-hero {
+      padding: 1.75rem 0;
+    }
+
+    .article-layout {
+      padding-top: 1.75rem;
+    }
+
+    .article-meta-bar {
+      align-items: flex-start;
+    }
+
+    .author-box-role {
+      max-width: 32ch;
+    }
+  }
+</style>

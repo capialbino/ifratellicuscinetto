@@ -1,0 +1,217 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { AUTHORS } from '../data/authors';
+import type { Locale } from '../utils/articles';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const languageSwitchHref = locale === 'it' ? '/en/about' : '/chi-siamo';
+---
+
+<BaseLayout
+  title={locale === 'it' ? 'Chi siamo — I Fratelli Cuscinetto' : 'About — I Fratelli Cuscinetto'}
+  description={locale === 'it'
+    ? 'Due ingegneri meccanici e un ingegnere informatico che scrivono di scienza, fisica applicata, meccanica e AI.'
+    : 'Two mechanical engineers and a computer engineer writing about science, applied physics, mechanics, and AI.'}
+  activeNav="chi-siamo"
+  locale={locale}
+  languageSwitchHref={languageSwitchHref}
+>
+  <section class="about-hero engineering-grid">
+    <div class="container">
+      <span class="badge badge-hybrid">{locale === 'it' ? 'Il Collettivo' : 'The Collective'}</span>
+      <h1 class="about-title">{locale === 'it' ? 'Tre ingegneri, un cuscinetto metaforico.' : 'Three engineers, one metaphorical bearing.'}</h1>
+      <p class="about-lead">
+        {locale === 'it'
+          ? <><strong>I Fratelli Cuscinetto</strong> nasce dall'idea di mettere sullo stesso tavolo chi progetta macchine reali e chi addestra modelli e scrive software. Perché oggi la meccanica senza algoritmi è cieca, e l'AI senza fisica spesso allucina.</>
+          : <><strong>I Fratelli Cuscinetto</strong> brings together people who design real machines and those who train models and write software. Today, mechanics without algorithms is blind, while AI without physics often hallucinates.</>}
+      </p>
+    </div>
+  </section>
+
+  <section class="container team-section">
+    <h2 class="section-heading">{locale === 'it' ? 'La redazione' : 'The team'}</h2>
+    <div class="team-grid">
+      {Object.values(AUTHORS).map((member) => (
+        <div class="member-card">
+          <div class="member-head">
+            <span class="member-avatar" style={`background:${member.accentColor}`}>
+              {member.initials}
+            </span>
+            <div>
+              <h3 class="member-name">{member.name}</h3>
+              <div class="member-role">{locale === 'it' ? member.role : ({
+                marco: 'Mechanical Engineer',
+                luca: 'Mechanical Engineer',
+                alessandro: 'Computer Engineer & AI Engineer',
+              }[member.id])}</div>
+              <div class="member-disc">{locale === 'it' ? member.discipline : ({
+                marco: 'Turbochargers & Formula 1',
+                luca: 'Mechanical Engineering',
+                alessandro: 'Artificial Intelligence & Software',
+              }[member.id])}</div>
+            </div>
+          </div>
+          <p class="member-bio">{locale === 'it' ? member.bio : ({
+            marco: 'Works on Formula 1 turbochargers, at the intersection of mechanical engineering and high-performance systems.',
+            luca: 'Works in mechanical engineering and shares the ideas and applications he encounters in his work.',
+            alessandro: 'Builds bridges between neural networks and the physical world: PINNs, predictive maintenance, edge AI, and high-performance software architectures.',
+          }[member.id])}</p>
+        </div>
+      ))}
+    </div>
+
+    <div class="manifesto">
+      <h2>{locale === 'it' ? 'Come scriviamo i nostri articoli' : 'How we write'}</h2>
+      <ul>
+        <li>
+          <strong>{locale === 'it' ? 'Rigore accessibile:' : 'Accessible rigour:'}</strong> {locale === 'it'
+            ? 'partiamo dall’intuizione fisica o algoritmica, ma non nascondiamo le formule o il codice quando servono a capire davvero.'
+            : 'we start with physical or algorithmic intuition, but never hide the equations or code needed to understand the details.'}
+        </li>
+        <li>
+          <strong>{locale === 'it' ? 'Zero fuffa:' : 'No fluff:'}</strong> {locale === 'it'
+            ? 'niente riassunti generici di press release — solo casi reali, modelli matematici, codice riproducibile e problemi ingegneristici concreti.'
+            : 'no generic press-release summaries — just real cases, mathematical models, reproducible code, and concrete engineering problems.'}
+        </li>
+        <li>
+          <strong>{locale === 'it' ? 'Workflow Git-first:' : 'Git-first workflow:'}</strong> {locale === 'it'
+            ? 'ogni articolo è un file Markdown con supporto nativo a LaTeX (KaTeX) e syntax highlighting. Scriviamo come lavoriamo sul codice.'
+            : 'every article is a Markdown file with native LaTeX (KaTeX) and syntax-highlighting support. We write the way we work with code.'}
+        </li>
+      </ul>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .about-hero {
+    padding: 3.5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .about-title {
+    margin: 0.75rem 0;
+    font-size: clamp(2rem, 4vw, 3rem);
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+
+  .about-lead {
+    max-width: 64ch;
+    margin: 0;
+    font-size: 1.12rem;
+    color: var(--text-muted);
+  }
+
+  .team-section {
+    padding-top: 2.75rem;
+  }
+
+  .section-heading {
+    margin: 0 0 1.25rem;
+    font-size: 1.5rem;
+    letter-spacing: -0.02em;
+  }
+
+  .team-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 1.25rem;
+  }
+
+  .member-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.4rem;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .member-head {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .member-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    color: #fff;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .member-name {
+    margin: 0;
+    font-size: 1.08rem;
+  }
+
+  .member-role {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .member-disc {
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    color: var(--text-muted);
+  }
+
+  .member-bio {
+    margin: 0;
+    font-size: 0.94rem;
+    color: var(--text-muted);
+  }
+
+  .manifesto {
+    margin-top: 2.75rem;
+    padding: 1.75rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+  }
+
+  .manifesto h2 {
+    margin-top: 0;
+    font-size: 1.35rem;
+  }
+
+  .manifesto ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    color: var(--text-muted);
+  }
+
+  .manifesto strong {
+    color: var(--text);
+  }
+
+  @media (max-width: 640px) {
+    .about-hero {
+      padding: 2.5rem 0 2rem;
+    }
+
+    .team-section {
+      padding-top: 2rem;
+    }
+
+    .member-card,
+    .manifesto {
+      padding: 1.1rem;
+    }
+  }
+</style>
