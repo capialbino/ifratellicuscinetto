@@ -187,8 +187,17 @@ const initialConfigJson = JSON.stringify(siteConfig);
               <button type="button" class="tb-btn" data-insert="table" title="Tabella">⊞ Tabella</button>
               <label class="tb-btn tb-upload" title="Carica immagine dal PC">
                 🖼 Immagine
-                <input id="image-upload-input" type="file" accept="image/*" hidden />
+                <input id="image-upload-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" hidden />
               </label>
+              <button type="button" id="ai-format-btn" class="tb-btn tb-ai" title="Impamina in Markdown, converte formule in LaTeX e genera SEO/tag">
+                ✨ Formatta &amp; LaTeX
+              </button>
+              <button type="button" id="ai-seo-btn" class="tb-btn tb-ai" title="Genera descrizione SEO e tag dal testo">
+                ✨ SEO &amp; Tag
+              </button>
+              <button type="button" id="ai-undo-btn" class="tb-btn" hidden title="Ripristina il testo prima dell’ultima modifica AI">
+                ↩ Ripristina
+              </button>
             </div>
 
             <div class="view-tabs" role="tablist">
@@ -1061,6 +1070,103 @@ const initialConfigJson = JSON.stringify(siteConfig);
     imageUploadInput.value = '';
   });
 
+  // Assistente AI (Formatta & LaTeX / SEO & Tag)
+  const aiFormatBtn = document.getElementById('ai-format-btn') as HTMLButtonElement;
+  const aiSeoBtn = document.getElementById('ai-seo-btn') as HTMLButtonElement;
+  const aiUndoBtn = document.getElementById('ai-undo-btn') as HTMLButtonElement;
+  let lastAiSnapshot: {
+    title: string;
+    desc: string;
+    tags: string;
+    category: string;
+    level: string;
+    body: string;
+  } | null = null;
+
+  async function runAiAssist(mode: 'format' | 'seo') {
+    const body = bodyInput.value.trim();
+    if (body.length < 20) {
+      showBanner('Scrivi o incolla almeno qualche riga di testo prima di usare l’AI.', true);
+      return;
+    }
+
+    lastAiSnapshot = {
+      title: titleInput.value,
+      desc: descInput.value,
+      tags: tagsInput.value,
+      category: categorySelect.value,
+      level: levelSelect.value,
+      body: bodyInput.value,
+    };
+
+    const activeBtn = mode === 'format' ? aiFormatBtn : aiSeoBtn;
+    const origLabel = activeBtn.textContent || '';
+    aiFormatBtn.disabled = true;
+    aiSeoBtn.disabled = true;
+    activeBtn.textContent = 'Elaborazione AI...';
+    hideBanner();
+
+    try {
+      const res = await fetch(`${API_BASE}/ai-assist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode,
+          title: titleInput.value.trim(),
+          body,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Errore AI');
+      const r = data.result || {};
+
+      if (mode === 'format' && r.body) {
+        bodyInput.value = r.body;
+        renderPreview();
+      }
+      if (r.title && !titleInput.value.trim()) {
+        titleInput.value = r.title;
+        if (!editingSlug && !slugManuallyEdited) slugInput.value = slugify(r.title);
+      }
+      if (r.description) descInput.value = r.description;
+      if (Array.isArray(r.tags) && r.tags.length > 0) tagsInput.value = r.tags.join(', ');
+      if (r.category && ['Meccanica', 'AI & Software', 'Meccatronica & Hybrid'].includes(r.category)) {
+        categorySelect.value = r.category;
+      }
+      if (r.level && ['Divulgativo', 'Intermedio', 'Tecnico / Avanzato'].includes(r.level)) {
+        levelSelect.value = r.level;
+      }
+
+      aiUndoBtn.hidden = false;
+      showBanner(
+        mode === 'format'
+          ? `Testo impaginato con LaTeX e SEO generati (${data.model}). Controlla l’anteprima o clicca "Ripristina" per tornare indietro.`
+          : `Descrizione SEO e tag generati (${data.model}).`
+      );
+    } catch (err: any) {
+      showBanner(err?.message || 'Errore durante l’elaborazione AI.', true);
+    } finally {
+      aiFormatBtn.disabled = false;
+      aiSeoBtn.disabled = false;
+      activeBtn.textContent = origLabel;
+    }
+  }
+
+  aiFormatBtn?.addEventListener('click', () => runAiAssist('format'));
+  aiSeoBtn?.addEventListener('click', () => runAiAssist('seo'));
+  aiUndoBtn?.addEventListener('click', () => {
+    if (!lastAiSnapshot) return;
+    titleInput.value = lastAiSnapshot.title;
+    descInput.value = lastAiSnapshot.desc;
+    tagsInput.value = lastAiSnapshot.tags;
+    categorySelect.value = lastAiSnapshot.category;
+    levelSelect.value = lastAiSnapshot.level;
+    bodyInput.value = lastAiSnapshot.body;
+    renderPreview();
+    aiUndoBtn.hidden = true;
+    showBanner('Testo precedente ripristinato.');
+  });
+
   // Formatting toolbar
   document.querySelectorAll('.tb-btn[data-insert]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -1729,6 +1835,12 @@ const initialConfigJson = JSON.stringify(siteConfig);
 
   .tb-btn:hover {
     border-color: var(--accent);
+  }
+
+  .tb-ai {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+    background: var(--accent-soft);
   }
 
   .view-tabs {

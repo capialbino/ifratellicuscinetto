@@ -4,6 +4,7 @@ import * as logoutHandler from './functions/api/admin/logout.js';
 import * as articlesHandler from './functions/api/admin/articles.js';
 import * as uploadHandler from './functions/api/admin/upload.js';
 import * as siteConfigHandler from './functions/api/admin/site-config.js';
+import * as aiAssistHandler from './functions/api/admin/ai-assist.js';
 
 const ROUTES = {
   '/api/admin/session': sessionHandler,
@@ -12,6 +13,7 @@ const ROUTES = {
   '/api/admin/articles': articlesHandler,
   '/api/admin/upload': uploadHandler,
   '/api/admin/site-config': siteConfigHandler,
+  '/api/admin/ai-assist': aiAssistHandler,
 };
 
 const METHOD_MAP = {
