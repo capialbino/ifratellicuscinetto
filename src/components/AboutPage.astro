@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Bearing3D from './Bearing3D.astro';
 import { AUTHORS, getAuthor } from '../data/authors';
 import type { Locale } from '../utils/articles';
 import { siteConfig } from '../utils/site-config';
@@ -25,18 +26,22 @@ const members = (Object.keys(AUTHORS) as Array<keyof typeof AUTHORS>).map((id) =
   languageSwitchHref={languageSwitchHref}
 >
   <section class="about-hero engineering-grid">
-    <div class="container about-hero-inner">
-      <p class="about-eyebrow">{locale === 'it' ? 'Il collettivo' : 'The collective'}</p>
-      <h1 class="about-title">
-        {locale === 'it'
-          ? 'Tre ingegneri. Un solo tavolo di progetto.'
-          : 'Three engineers. One workbench.'}
-      </h1>
-      <p class="about-lead">
-        {locale === 'it'
-          ? `${siteConfig.brand.name} nasce dall'idea di mettere insieme chi progetta macchine reali e chi addestra modelli e scrive software. Perché oggi la meccanica senza algoritmi è cieca, e l'AI senza fisica spesso allucina.`
-          : `${siteConfig.brand.name} brings together people who design real machines and those who train models and write software. Today, mechanics without algorithms is blind, while AI without physics often hallucinates.`}
-      </p>
+    <div class="container about-hero-grid">
+      <div class="about-hero-inner">
+        <p class="about-eyebrow">{locale === 'it' ? 'Il collettivo' : 'The collective'}</p>
+        <h1 class="about-title">
+          {locale === 'it'
+            ? 'Tre ingegneri. Un solo tavolo di progetto.'
+            : 'Three engineers. One workbench.'}
+        </h1>
+        <p class="about-lead">
+          {locale === 'it'
+            ? `${siteConfig.brand.name} nasce dall'idea di mettere insieme chi progetta macchine reali e chi addestra modelli e scrive software. Perché oggi la meccanica senza algoritmi è cieca, e l'AI senza fisica spesso allucina.`
+            : `${siteConfig.brand.name} brings together people who design real machines and those who train models and write software. Today, mechanics without algorithms is blind, while AI without physics often hallucinates.`}
+        </p>
+      </div>
+
+      <Bearing3D locale={locale} />
     </div>
   </section>
 
@@ -98,8 +103,21 @@ const members = (Object.keys(AUTHORS) as Array<keyof typeof AUTHORS>).map((id) =
     border-bottom: 1px solid var(--border);
   }
 
+  .about-hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+    align-items: center;
+    gap: clamp(2rem, 5vw, 3.5rem);
+  }
+
   .about-hero-inner {
-    max-width: 780px;
+    max-width: 640px;
+  }
+
+  @media (max-width: 860px) {
+    .about-hero-grid {
+      grid-template-columns: 1fr;
+    }
   }
 
   .about-eyebrow {

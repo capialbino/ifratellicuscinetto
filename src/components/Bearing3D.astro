@@ -1,0 +1,283 @@
+---
+interface Props {
+  locale?: 'it' | 'en';
+}
+
+const { locale = 'it' } = Astro.props;
+---
+
+<div class="bearing-stage" data-bearing-stage>
+  <canvas class="bearing-canvas" aria-label={locale === 'it' ? 'Cuscinetto volvente 3D interattivo' : 'Interactive 3D rolling-element bearing'}></canvas>
+  <div class="bearing-hud">
+    <span class="hud-hint">{locale === 'it' ? 'Trascina per ruotare · Scroll per zoom' : 'Drag to orbit · Scroll to zoom'}</span>
+    <button type="button" class="hud-btn" data-bearing-toggle>
+      {locale === 'it' ? 'Pausa' : 'Pause'}
+    </button>
+  </div>
+</div>
+
+<script>
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+  import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+
+  function initBearingStage(stage: HTMLElement) {
+    const canvas = stage.querySelector('.bearing-canvas') as HTMLCanvasElement | null;
+    const toggleBtn = stage.querySelector('[data-bearing-toggle]') as HTMLButtonElement | null;
+    if (!canvas) return;
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+
+    const scene = new THREE.Scene();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+    const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+    camera.position.set(0, 1.35, 5.4);
+
+    const controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.enablePan = false;
+    controls.minDistance = 3.2;
+    controls.maxDistance = 8.5;
+
+    // Illuminazione da studio Apple/Ive
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
+    keyLight.position.set(4, 6, 5);
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0x8ec5ff, 1.4);
+    rimLight.position.set(-5, -2, -4);
+    scene.add(rimLight);
+
+    const fillLight = new THREE.DirectionalLight(0xffdfb8, 0.8);
+    fillLight.position.set(-4, 3, 4);
+    scene.add(fillLight);
+
+    const bearingGroup = new THREE.Group();
+    bearingGroup.rotation.x = 0.32;
+    bearingGroup.rotation.y = -0.35;
+    scene.add(bearingGroup);
+
+    // Materiali metallici lavorati (acciaio 100Cr6, titanio anodizzato, gabbia bronzo)
+    const steelMat = new THREE.MeshPhysicalMaterial({
+      color: 0xd8dce3,
+      metalness: 0.92,
+      roughness: 0.18,
+      clearcoat: 0.35,
+      clearcoatRoughness: 0.15,
+    });
+
+    const ballMat = new THREE.MeshPhysicalMaterial({
+      color: 0xf4f6fa,
+      metalness: 0.98,
+      roughness: 0.05,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.05,
+    });
+
+    const cageMat = new THREE.MeshPhysicalMaterial({
+      color: 0xb87333,
+      metalness: 0.88,
+      roughness: 0.28,
+    });
+
+    const accentRingMat = new THREE.MeshPhysicalMaterial({
+      color: 0x0071e3,
+      metalness: 0.7,
+      roughness: 0.25,
+    });
+
+    // Helper: profilo anello tornito con smussi (LatheGeometry)
+    function makeRaceRing(rInner: number, rOuter: number, width: number, bevel = 0.045) {
+      const hw = width / 2;
+      const pts = [
+        new THREE.Vector2(rInner + bevel, -hw),
+        new THREE.Vector2(rOuter - bevel, -hw),
+        new THREE.Vector2(rOuter, -hw + bevel),
+        new THREE.Vector2(rOuter, hw - bevel),
+        new THREE.Vector2(rOuter - bevel, hw),
+        new THREE.Vector2(rInner + bevel, hw),
+        new THREE.Vector2(rInner, hw - bevel),
+        new THREE.Vector2(rInner, -hw + bevel),
+        new THREE.Vector2(rInner + bevel, -hw),
+      ];
+      const geo = new THREE.LatheGeometry(pts, 72);
+      geo.rotateX(Math.PI / 2);
+      return geo;
+    }
+
+    // Anello esterno (fisso)
+    const outerRing = new THREE.Mesh(makeRaceRing(1.52, 1.92, 0.72), steelMat);
+    bearingGroup.add(outerRing);
+
+    // Anello interno (ruota alla velocità dell'albero)
+    const innerRing = new THREE.Mesh(makeRaceRing(0.66, 1.02, 0.72), steelMat);
+    bearingGroup.add(innerRing);
+
+    // Sottile anello di tenuta blu anodizzato sul fianco interno
+    const sealRing = new THREE.Mesh(makeRaceRing(1.03, 1.51, 0.06, 0.01), accentRingMat);
+    sealRing.position.z = -0.3;
+    bearingGroup.add(sealRing);
+
+    // Gabbia + 9 sfere (ruotano a metà della velocità dell'anello interno: cinematica reale!)
+    const cageGroup = new THREE.Group();
+    bearingGroup.add(cageGroup);
+
+    const pitchRadius = 1.27;
+    const ballRadius = 0.265;
+    const numBalls = 9;
+    const ballGeo = new THREE.SphereGeometry(ballRadius, 32, 32);
+    const balls: THREE.Mesh[] = [];
+
+    for (let i = 0; i < numBalls; i++) {
+      const angle = (i / numBalls) * Math.PI * 2;
+      const ball = new THREE.Mesh(ballGeo, ballMat);
+      ball.position.set(Math.cos(angle) * pitchRadius, Math.sin(angle) * pitchRadius, 0);
+      cageGroup.add(ball);
+      balls.push(ball);
+    }
+
+    const cageTorus = new THREE.Mesh(new THREE.TorusGeometry(pitchRadius, 0.065, 16, 64), cageMat);
+    cageTorus.position.z = 0.14;
+    cageGroup.add(cageTorus);
+
+    const cageTorusBack = new THREE.Mesh(new THREE.TorusGeometry(pitchRadius, 0.065, 16, 64), cageMat);
+    cageTorusBack.position.z = -0.14;
+    cageGroup.add(cageTorusBack);
+
+    // Resize responsive
+    function resize() {
+      const width = stage.clientWidth || 320;
+      const height = stage.clientHeight || 320;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height, false);
+    }
+    const ro = new ResizeObserver(resize);
+    ro.observe(stage);
+    resize();
+
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let isPlaying = !prefersReduced;
+    let isVisible = true;
+
+    const io = new IntersectionObserver((entries) => {
+      isVisible = entries[0]?.isIntersecting ?? true;
+    });
+    io.observe(stage);
+
+    if (toggleBtn) {
+      const isEn = document.documentElement.lang === 'en';
+      const updateLabel = () => {
+        toggleBtn.textContent = isPlaying ? (isEn ? 'Pause' : 'Pausa') : isEn ? 'Play' : 'Avvia';
+      };
+      updateLabel();
+      toggleBtn.addEventListener('click', () => {
+        isPlaying = !isPlaying;
+        updateLabel();
+      });
+    }
+
+    let prevTime = performance.now();
+    function animate(now: number) {
+      requestAnimationFrame(animate);
+      if (!isVisible) return;
+      const dt = Math.min((now - prevTime) / 1000, 0.05);
+      prevTime = now;
+
+      if (isPlaying) {
+        const omegaInner = 1.1; // rad/s
+        innerRing.rotation.z -= omegaInner * dt;
+        cageGroup.rotation.z -= (omegaInner * 0.5) * dt;
+        for (const ball of balls) {
+          ball.rotation.z += omegaInner * 1.8 * dt;
+        }
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    requestAnimationFrame(animate);
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-bearing-stage]').forEach(initBearingStage);
+</script>
+
+<style>
+  .bearing-stage {
+    position: relative;
+    width: 100%;
+    height: 360px;
+    border-radius: var(--radius-card);
+    border: 1px solid var(--border);
+    background: radial-gradient(
+      circle at 50% 42%,
+      color-mix(in srgb, var(--accent) 8%, var(--bg-elevated)),
+      var(--bg-elevated) 72%
+    );
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .bearing-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+  }
+
+  .bearing-canvas:active {
+    cursor: grabbing;
+  }
+
+  .bearing-hud {
+    position: absolute;
+    left: 1rem;
+    right: 1rem;
+    bottom: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+
+  .hud-hint {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    background: var(--bg-glass);
+    backdrop-filter: blur(10px);
+    padding: 0.25rem 0.65rem;
+    border-radius: 980px;
+    border: 1px solid var(--border);
+  }
+
+  .hud-btn {
+    pointer-events: auto;
+    font-family: var(--font-sans);
+    font-size: 0.74rem;
+    font-weight: 500;
+    color: var(--text);
+    background: var(--bg-glass);
+    backdrop-filter: blur(10px);
+    padding: 0.28rem 0.75rem;
+    border-radius: 980px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.2s var(--ease-ive);
+  }
+
+  .hud-btn:hover {
+    border-color: var(--accent);
+  }
+
+  @media (max-width: 640px) {
+    .bearing-stage {
+      height: 290px;
+    }
+  }
+</style>

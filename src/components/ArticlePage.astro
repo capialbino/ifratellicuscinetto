@@ -94,6 +94,105 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
   </article>
 </BaseLayout>
 
+<script>
+  // Lazy-loads Three.js ONLY when the article actually contains a .glb 3D model
+  const frames = Array.from(document.querySelectorAll<HTMLElement>('.model-3d-frame[data-src]'));
+  if (frames.length > 0) {
+    (async () => {
+      const [THREE, { OrbitControls }, { GLTFLoader }, { RoomEnvironment }] = await Promise.all([
+        import('three'),
+        import('three/examples/jsm/controls/OrbitControls.js'),
+        import('three/examples/jsm/loaders/GLTFLoader.js'),
+        import('three/examples/jsm/environments/RoomEnvironment.js'),
+      ]);
+
+      const isEn = document.documentElement.lang === 'en';
+      const loader = new GLTFLoader();
+
+      for (const frame of frames) {
+        const src = frame.dataset.src;
+        const label = frame.dataset.label || (isEn ? '3D CAD Model' : 'Modello 3D');
+        if (!src) continue;
+
+        frame.innerHTML = `
+          <canvas class="model-3d-canvas"></canvas>
+          <div class="model-3d-status">${isEn ? 'Loading 3D model...' : 'Caricamento modello 3D...'}</div>
+          <div class="model-3d-hud">
+            <span>${label}</span>
+            <span>${isEn ? 'Drag to rotate · Scroll to zoom' : 'Trascina per ruotare · Scroll per zoom'}</span>
+          </div>
+        `;
+
+        const canvas = frame.querySelector('.model-3d-canvas') as HTMLCanvasElement;
+        const statusEl = frame.querySelector('.model-3d-status') as HTMLElement;
+
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.1;
+
+        const scene = new THREE.Scene();
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+        const camera = new THREE.PerspectiveCamera(36, 16 / 10, 0.05, 200);
+        camera.position.set(2.4, 1.7, 3.2);
+
+        const controls = new OrbitControls(camera, canvas);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+
+        const light = new THREE.DirectionalLight(0xffffff, 2.0);
+        light.position.set(4, 6, 5);
+        scene.add(light);
+
+        const resize = () => {
+          const w = frame.clientWidth || 640;
+          const h = frame.clientHeight || 400;
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          renderer.setSize(w, h, false);
+        };
+        new ResizeObserver(resize).observe(frame);
+        resize();
+
+        loader.load(
+          src,
+          (gltf) => {
+            const root = gltf.scene;
+            const box = new THREE.Box3().setFromObject(root);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z) || 1;
+            const scale = 2.4 / maxDim;
+            root.scale.setScalar(scale);
+            root.position.sub(center.multiplyScalar(scale));
+            scene.add(root);
+            statusEl.remove();
+          },
+          undefined,
+          () => {
+            statusEl.textContent = isEn ? 'Unable to load 3D model.' : 'Impossibile caricare il modello 3D.';
+          }
+        );
+
+        let visible = true;
+        new IntersectionObserver((entries) => {
+          visible = entries[0]?.isIntersecting ?? true;
+        }).observe(frame);
+
+        const animate = () => {
+          requestAnimationFrame(animate);
+          if (!visible) return;
+          controls.update();
+          renderer.render(scene, camera);
+        };
+        requestAnimationFrame(animate);
+      }
+    })();
+  }
+</script>
+
 <script is:inline>
   (() => {
     const blocks = document.querySelectorAll('.prose pre');
@@ -299,6 +398,67 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
   :global(.copy-code-btn:hover) {
     color: var(--text);
     border-color: var(--border-strong);
+  }
+
+  :global(.model-3d-frame) {
+    position: relative;
+    width: 100%;
+    height: 420px;
+    margin: 2rem 0;
+    border-radius: var(--radius-card);
+    border: 1px solid var(--border);
+    background: radial-gradient(
+      circle at 50% 42%,
+      color-mix(in srgb, var(--accent) 8%, var(--bg-elevated)),
+      var(--bg-elevated) 72%
+    );
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  :global(.model-3d-canvas) {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+  }
+
+  :global(.model-3d-canvas:active) {
+    cursor: grabbing;
+  }
+
+  :global(.model-3d-status) {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-sans);
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+
+  :global(.model-3d-hud) {
+    position: absolute;
+    left: 1rem;
+    right: 1rem;
+    bottom: 0.85rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-family: var(--font-sans);
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+
+  :global(.model-3d-hud span) {
+    background: var(--bg-glass);
+    backdrop-filter: blur(10px);
+    padding: 0.24rem 0.65rem;
+    border-radius: 980px;
+    border: 1px solid var(--border);
   }
 
   @media (max-width: 960px) {

@@ -11,16 +11,36 @@ const isGitHubUserSite = githubRepository === `${githubOwner}.github.io`;
 const base =
   isGitHubPagesBuild && !isGitHubUserSite ? `/${githubRepository}` : '/';
 
-/** Prepends Astro `base` to root-relative `/uploads/...` image URLs in Markdown when hosted under a subpath. */
+/** Prefixes `/uploads/...` URLs with Astro `base` and upgrades `.glb` links into interactive 3D viewer containers. */
 function rehypePrefixUploadsBase() {
   const prefix = base.endsWith('/') ? base.slice(0, -1) : base;
   return (tree) => {
-    if (!prefix) return;
+    const extractText = (n) => {
+      if (!n) return '';
+      if (n.type === 'text') return n.value || '';
+      if (Array.isArray(n.children)) return n.children.map(extractText).join('');
+      return '';
+    };
     const visit = (node) => {
       if (node?.type === 'element' && node.tagName === 'img') {
         const src = node.properties?.src;
-        if (typeof src === 'string' && src.startsWith('/uploads/')) {
+        if (prefix && typeof src === 'string' && src.startsWith('/uploads/')) {
           node.properties.src = `${prefix}${src}`;
+        }
+      }
+      if (node?.type === 'element' && node.tagName === 'a') {
+        const href = node.properties?.href;
+        if (typeof href === 'string' && /\.glb(\?.*)?$/i.test(href) && href.startsWith('/uploads/')) {
+          const resolvedSrc = prefix ? `${prefix}${href}` : href;
+          const label = extractText(node).replace(/^3d:\s*/i, '').trim() || 'Modello 3D';
+          node.tagName = 'div';
+          node.properties = {
+            className: ['model-3d-frame'],
+            'data-src': resolvedSrc,
+            'data-label': label,
+          };
+          node.children = [];
+          return;
         }
       }
       if (Array.isArray(node?.children)) {
