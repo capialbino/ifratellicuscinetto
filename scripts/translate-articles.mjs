@@ -103,10 +103,59 @@ function restoreTechnicalSegments(text, tokens, tokenPattern) {
   });
 }
 
+let cachedGeminiModel = null;
+
+async function resolveGeminiModel(apiKey) {
+  if (process.env.GEMINI_MODEL) return process.env.GEMINI_MODEL.replace(/^models\//, '');
+  if (cachedGeminiModel) return cachedGeminiModel;
+
+  const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}&pageSize=100`;
+  const res = await fetch(listUrl);
+  if (!res.ok) {
+    const errText = (await res.text()).replace(/\s+/g, ' ').slice(0, 300);
+    throw new Error(`Gemini ListModels ${res.status}: ${errText}`);
+  }
+
+  const data = await res.json();
+  const candidates = (data.models || [])
+    .filter(
+      (m) =>
+        Array.isArray(m.supportedGenerationMethods) &&
+        m.supportedGenerationMethods.includes('generateContent') &&
+        typeof m.name === 'string'
+    )
+    .map((m) => m.name.replace(/^models\//, ''))
+    .filter(
+      (id) =>
+        id.startsWith('gemini-') &&
+        !/(image|audio|tts|live|veo|embedding|aqa|vision|robotics|computer-use|omni)/i.test(id)
+    );
+
+  // Preferisce l'alias stabile `gemini-flash-latest` o il modello `flash` più recente
+  const picked =
+    candidates.find((id) => id === 'gemini-flash-latest') ||
+    candidates
+      .filter((id) => /flash/i.test(id) && !/lite/i.test(id))
+      .sort()
+      .at(-1) ||
+    candidates
+      .filter((id) => /flash/i.test(id))
+      .sort()
+      .at(-1) ||
+    candidates.sort().at(-1);
+
+  if (!picked) {
+    throw new Error('Nessun modello Gemini compatibile con generateContent trovato per questa API key.');
+  }
+
+  cachedGeminiModel = picked;
+  return picked;
+}
+
 async function translateWithGemini(article) {
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const model = await resolveGeminiModel(apiKey);
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
   const prompt = [
     'Translate this Italian technical engineering article into clear, natural, idiomatic English.',
@@ -136,12 +185,13 @@ async function translateWithGemini(article) {
   });
 
   if (!res.ok) {
-    throw new Error(`Gemini API ${res.status}: ${await res.text()}`);
+    const errText = (await res.text()).replace(/\s+/g, ' ').slice(0, 300);
+    throw new Error(`Gemini API ${res.status} (${model}): ${errText}`);
   }
 
   const data = await res.json();
   const rawJson = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!rawJson) throw new Error('Gemini returned empty response');
+  if (!rawJson) throw new Error(`Gemini (${model}) returned empty response`);
   const parsed = JSON.parse(rawJson);
 
   return {
@@ -151,6 +201,7 @@ async function translateWithGemini(article) {
       ? parsed.tags.map((t) => String(t).trim()).filter(Boolean)
       : article.frontmatter.tags || [],
     body: String(parsed.body || article.body).trim(),
+    model,
   };
 }
 
@@ -300,7 +351,6 @@ async function translateArticle(article) {
 
 /** Verifica che la GEMINI_API_KEY sia valida con una mini-traduzione, senza toccare gli articoli. */
 async function checkProvider() {
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
   if (!process.env.GEMINI_API_KEY) {
     console.log('::notice::GEMINI_API_KEY non impostata: verrà usato il traduttore gratuito di riserva.');
     return;
@@ -314,12 +364,13 @@ async function checkProvider() {
       },
       body: 'La pressione di contatto $p_0$ raggiunge valori di gigapascal.',
     });
-    console.log(`✅ GEMINI_API_KEY FUNZIONA (modello ${model})`);
+    console.log(`✅ GEMINI_API_KEY FUNZIONA (modello ${result.model})`);
     console.log(`   "Cuscinetto volvente" -> "${result.title}"`);
     console.log(`   "Accoppiamento con interferenza albero-mozzo" -> "${result.description}"`);
     console.log(`   Corpo -> "${result.body}"`);
   } catch (err) {
-    console.log(`::warning::❌ GEMINI_API_KEY NON FUNZIONA (modello ${model}): ${err.message.slice(0, 300)}`);
+    const cleanMsg = String(err.message || err).replace(/\s+/g, ' ').slice(0, 350);
+    console.log(`::warning::❌ GEMINI_API_KEY NON FUNZIONA: ${cleanMsg}`);
   }
 }
 
