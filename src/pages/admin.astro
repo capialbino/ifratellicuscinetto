@@ -19,21 +19,17 @@ const initialConfigJson = JSON.stringify(siteConfig);
     <section id="login-view" class="container login-wrap">
       <div class="login-card">
         <div class="login-head">
-          <span class="badge badge-hybrid">Area Redazione</span>
-          <h1>Accedi alla redazione</h1>
-          <p id="mode-subtitle" class="muted">
-            Inserisci il tuo nome utente (nome-cognome) e la password.
-          </p>
+          <h1>Accedi</h1>
         </div>
 
         <form id="cf-login-form" class="login-form">
           <label class="field">
-            <span>Utente (nome-cognome)</span>
+            <span>Username</span>
             <input
               id="login-author"
               type="text"
               list="authors-datalist"
-              placeholder="es. federico-pappafava"
+              placeholder="nome-cognome"
               autocomplete="username"
               required
             />
@@ -49,7 +45,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
             <input
               id="login-password"
               type="password"
-              placeholder="Inserisci la password"
+              placeholder="Password"
               autocomplete="current-password"
               required
             />
