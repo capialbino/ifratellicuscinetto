@@ -1,0 +1,220 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import type { Locale } from '../utils/articles';
+import { siteConfig } from '../utils/site-config';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const languageSwitchHref = locale === 'it' ? '/en/privacy' : '/privacy';
+const isIt = locale === 'it';
+---
+
+<BaseLayout
+  title={isIt ? `Privacy & Cookie Policy — ${siteConfig.brand.name}` : `Privacy & Cookie Policy — ${siteConfig.brand.name}`}
+  description={isIt
+    ? 'Informativa sulla privacy, uso dei cookie tecnici e note legali ai sensi del GDPR (Reg. UE 2016/679).'
+    : 'Privacy policy, technical cookie disclosure, and legal notice under EU GDPR (Regulation 2016/679).'}
+  locale={locale}
+  languageSwitchHref={languageSwitchHref}
+>
+  <section class="container legal-page">
+    <header class="legal-head">
+      <p class="legal-eyebrow">{isIt ? 'Trasparenza & Conformità GDPR' : 'Transparency & GDPR Compliance'}</p>
+      <h1>{isIt ? 'Privacy, Cookie e Note Legali' : 'Privacy, Cookies & Legal Notice'}</h1>
+      <p class="legal-updated">
+        {isIt ? 'Ultimo aggiornamento: Novembre 2026' : 'Last updated: November 2026'}
+      </p>
+    </header>
+
+    <div class="prose legal-body">
+      {isIt ? (
+        <>
+          <h2>1. Titolare del trattamento</h2>
+          <p>
+            Il sito <strong>{siteConfig.brand.name}</strong> è un progetto editoriale indipendente e non commerciale
+            curato da Alessandro Capialbi, Federico Pappafava e Alessandro Rossi.
+            Per qualsiasi richiesta relativa alla privacy (incluso l’esercizio dei diritti GDPR), puoi contattare il
+            referente tecnico all’indirizzo email pubblicato sul profilo GitHub del progetto
+            (<code>github.com/capialbino/ifratellicuscinetto</code>).
+          </p>
+
+          <h2>2. Approccio Privacy-by-Design (Zero tracciamento)</h2>
+          <p>
+            Questo sito è progettato per funzionare nel pieno rispetto del <strong>Regolamento (UE) 2016/679 (GDPR)</strong>
+            e delle Linee Guida del Garante per la protezione dei dati personali:
+          </p>
+          <ul>
+            <li><strong>Nessun cookie di profilazione, marketing o pubblicità.</strong></li>
+            <li><strong>Nessun tracker o font esterno di terze parti:</strong> non vengono caricati script di Google Analytics, Meta Pixel o Google Fonts esterni, evitando il trasferimento non necessario del tuo indirizzo IP a terzi.</li>
+            <li><strong>Nessuna raccolta di dati personali dai lettori:</strong> la lettura degli articoli non richiede registrazione, moduli né inserimento di dati personali.</li>
+          </ul>
+
+          <h2>3. Cookie e archiviazione locale (solo tecnici)</h2>
+          <p>
+            Ai sensi dell’art. 122 del D.Lgs. 196/2003 (Codice Privacy) e delle Linee Guida Cookie del Garante,
+            i meccanismi puramente tecnici non richiedono un banner di consenso preventivo:
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Tipo</th>
+                <th>Finalità</th>
+                <th>Durata</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>theme</code></td>
+                <td>localStorage (tecnico)</td>
+                <td>Ricorda la scelta del tema chiaro o scuro nel tuo browser.</td>
+                <td>Fino a cancellazione manuale</td>
+              </tr>
+              <tr>
+                <td><code>ifc_admin_session</code></td>
+                <td>Cookie <code>HttpOnly; Secure; SameSite=Lax</code></td>
+                <td>Impostato <strong>solo</strong> per gli autori che accedono all’area riservata <code>/admin</code>. Mai impostato ai lettori.</td>
+                <td>Fino al logout (max 400 giorni)</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h2>4. Dati tecnici di navigazione e hosting (Cloudflare)</h2>
+          <p>
+            Il sito è distribuito tramite l’infrastruttura <strong>Cloudflare, Inc.</strong> (CDN e protezione DDoS).
+            Nel normale funzionamento di rete, Cloudflare tratta temporaneamente dati tecnici di connessione (come
+            indirizzo IP, user-agent e timestamp) esclusivamente per erogare le pagine, prevenire abusi e garantire
+            la sicurezza del servizio (base giuridica: legittimo interesse, Art. 6.1.f GDPR).
+          </p>
+
+          <h2>5. Diritti dell’interessato (Artt. 15–22 GDPR)</h2>
+          <p>
+            Hai il diritto di chiedere l’accesso, la rettifica, la cancellazione o la limitazione del trattamento
+            degli eventuali dati che ti riguardano, nonché di proporre reclamo al
+            <strong>Garante per la protezione dei dati personali</strong> (<code>garanteprivacy.it</code>).
+          </p>
+
+          <h2>6. Note legali e disclaimer tecnico</h2>
+          <ul>
+            <li>
+              <strong>Natura non giornalistica (L. 62/2001):</strong> questo sito non rappresenta una testata
+              giornalistica in quanto viene aggiornato senza alcuna periodicità regolare. Non può pertanto
+              considerarsi un prodotto editoriale ai sensi della legge n. 62 del 7.03.2001.
+            </li>
+            <li>
+              <strong>Disclaimer ingegneristico:</strong> gli articoli, le formule matematiche e gli snippet di codice
+              hanno scopo esclusivamente divulgativo ed educativo. Non costituiscono consulenza professionale né
+              sostituiscono calcoli strutturali, verifiche normative o certificazioni ufficiali.
+            </li>
+          </ul>
+        </>
+      ) : (
+        <>
+          <h2>1. Data Controller</h2>
+          <p>
+            <strong>{siteConfig.brand.name}</strong> is an independent, non-commercial engineering publication
+            maintained by Alessandro Capialbi, Federico Pappafava, and Alessandro Rossi.
+            For any privacy inquiry or GDPR request, you can reach the technical maintainer via the project’s
+            GitHub repository (<code>github.com/capialbino/ifratellicuscinetto</code>).
+          </p>
+
+          <h2>2. Privacy-by-Design (Zero Tracking)</h2>
+          <p>
+            This website is built to comply with <strong>EU Regulation 2016/679 (GDPR)</strong> and ePrivacy rules:
+          </p>
+          <ul>
+            <li><strong>No profiling, marketing, or advertising cookies.</strong></li>
+            <li><strong>No third-party trackers or external font CDNs:</strong> we do not load Google Analytics, ad pixels, or external Google Fonts, avoiding unnecessary IP address transfers to third parties.</li>
+            <li><strong>No personal data collected from readers:</strong> reading articles requires no account, forms, or personal information.</li>
+          </ul>
+
+          <h2>3. Strictly Necessary Technical Storage</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Purpose</th>
+                <th>Retention</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>theme</code></td>
+                <td>localStorage (technical)</td>
+                <td>Remembers your light/dark theme preference locally.</td>
+                <td>Until cleared by user</td>
+              </tr>
+              <tr>
+                <td><code>ifc_admin_session</code></td>
+                <td>Cookie (<code>HttpOnly; Secure; SameSite=Lax</code>)</td>
+                <td>Set <strong>only</strong> for authenticated authors accessing <code>/admin</code>. Never set for readers.</td>
+                <td>Until sign-out (max 400 days)</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h2>4. Infrastructure & Security Logs (Cloudflare)</h2>
+          <p>
+            Pages are delivered via <strong>Cloudflare, Inc.</strong> for global CDN delivery and DDoS mitigation.
+            Cloudflare processes standard technical network metadata (such as IP address and request headers) strictly
+            to deliver content and protect the service against abuse (legal basis: legitimate interest, Art. 6(1)(f) GDPR).
+          </p>
+
+          <h2>5. Your Rights (GDPR Arts. 15–22)</h2>
+          <p>
+            Under GDPR, you have the right to request access, rectification, erasure, or restriction of any personal
+            data, as well as the right to lodge a complaint with your local EU Data Protection Authority.
+          </p>
+
+          <h2>6. Legal & Engineering Disclaimer</h2>
+          <p>
+            All articles, equations, and code snippets are provided for educational and informational purposes only
+            and do not constitute certified engineering advice or replace official standards and verification.
+          </p>
+        </>
+      )}
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .legal-page {
+    padding-top: clamp(2.5rem, 6vw, 4rem);
+    max-width: 820px;
+  }
+
+  .legal-head {
+    padding-bottom: 1.75rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .legal-eyebrow {
+    margin: 0 0 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--accent);
+  }
+
+  .legal-head h1 {
+    margin: 0 0 0.5rem;
+    font-family: var(--font-heading);
+    font-size: clamp(1.9rem, 4vw, 2.8rem);
+    font-weight: 600;
+    letter-spacing: -0.035em;
+  }
+
+  .legal-updated {
+    margin: 0;
+    font-size: 0.84rem;
+    color: var(--text-muted);
+  }
+
+  .legal-body {
+    max-width: none;
+  }
+</style>

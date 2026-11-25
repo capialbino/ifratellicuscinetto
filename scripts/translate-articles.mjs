@@ -69,6 +69,7 @@ function serializeEnglishMarkdown({ frontmatter, translated, body, sourceHash })
     `tags: ${JSON.stringify(translated.tags)}`,
     `level: ${JSON.stringify(frontmatter.level || 'Intermedio')}`,
     ...(frontmatter.draft ? ['draft: true'] : ['draft: false']),
+    ...(frontmatter.coverImage ? [`coverImage: ${JSON.stringify(frontmatter.coverImage)}`] : []),
     `sourceHash: ${JSON.stringify(sourceHash)}`,
     '---',
     '',

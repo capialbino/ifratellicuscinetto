@@ -147,6 +147,19 @@ const initialConfigJson = JSON.stringify(siteConfig);
               <input id="art-date" type="date" />
             </label>
 
+            <div class="field">
+              <span>Copertina (opzionale)</span>
+              <div class="cover-upload-row">
+                <label class="btn btn-secondary btn-sm">
+                  Carica copertina
+                  <input id="cover-upload-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" hidden />
+                </label>
+                <span id="cover-status" class="muted small">Auto (grafica tecnica)</span>
+                <button type="button" id="cover-clear-btn" class="btn-icon" hidden title="Rimuovi copertina">×</button>
+              </div>
+              <input id="art-cover" type="hidden" />
+            </div>
+
             <input id="art-tags" type="hidden" />
             <input id="art-desc" type="hidden" />
           </div>
@@ -414,7 +427,11 @@ const initialConfigJson = JSON.stringify(siteConfig);
   const levelSelect = document.getElementById('art-level') as HTMLSelectElement;
   const dateInput = document.getElementById('art-date') as HTMLInputElement;
   const tagsInput = document.getElementById('art-tags') as HTMLInputElement;
-  const descInput = document.getElementById('art-desc') as HTMLTextAreaElement;
+  const descInput = document.getElementById('art-desc') as HTMLInputElement;
+  const coverInput = document.getElementById('art-cover') as HTMLInputElement;
+  const coverUploadInput = document.getElementById('cover-upload-input') as HTMLInputElement;
+  const coverStatusEl = document.getElementById('cover-status')!;
+  const coverClearBtn = document.getElementById('cover-clear-btn') as HTMLButtonElement;
   const bodyInput = document.getElementById('art-body') as HTMLTextAreaElement;
   const draftCheckbox = document.getElementById('art-draft') as HTMLInputElement;
   const livePreviewEl = document.getElementById('live-preview')!;
@@ -437,6 +454,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
       tags: string[];
       level: string;
       draft: boolean;
+      coverImage?: string;
     };
     body: string;
   }
@@ -614,6 +632,9 @@ const initialConfigJson = JSON.stringify(siteConfig);
     dateInput.value = new Date().toISOString().slice(0, 10);
     tagsInput.value = '';
     descInput.value = '';
+    coverInput.value = '';
+    coverStatusEl.textContent = 'Auto (grafica tecnica)';
+    coverClearBtn.hidden = true;
     bodyInput.value = '';
     draftCheckbox.checked = false;
     publishBtn.textContent = 'Pubblica articolo';
@@ -636,6 +657,9 @@ const initialConfigJson = JSON.stringify(siteConfig);
     dateInput.value = art.frontmatter.pubDate || new Date().toISOString().slice(0, 10);
     tagsInput.value = (art.frontmatter.tags || []).join(', ');
     descInput.value = art.frontmatter.description;
+    coverInput.value = art.frontmatter.coverImage || '';
+    coverStatusEl.textContent = coverInput.value ? 'Copertina personalizzata' : 'Auto (grafica tecnica)';
+    coverClearBtn.hidden = !coverInput.value;
     bodyInput.value = art.body;
     draftCheckbox.checked = Boolean(art.frontmatter.draft);
     publishBtn.textContent = 'Salva modifiche';
@@ -789,6 +813,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
       tags,
       level: levelSelect.value,
       draft: draftCheckbox.checked,
+      coverImage: coverInput.value.trim(),
       body,
       sha: editingSha || undefined,
     };
@@ -1051,6 +1076,41 @@ const initialConfigJson = JSON.stringify(siteConfig);
     const file = imageUploadInput.files?.[0];
     if (file) uploadImageFile(file);
     imageUploadInput.value = '';
+  });
+
+  coverUploadInput?.addEventListener('change', () => {
+    const file = coverUploadInput.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = String(reader.result || '').replace(/^data:[^;]+;base64,/, '');
+      const slug = slugify(slugInput.value || titleInput.value || 'articoli') || 'articoli';
+      coverStatusEl.textContent = 'Caricamento...';
+      try {
+        const res = await fetch(`${API_BASE}/upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: `cover-${file.name}`, contentBase64: base64, slug }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Errore upload copertina');
+        coverInput.value = data.url;
+        coverStatusEl.textContent = file.name;
+        coverClearBtn.hidden = false;
+        showBanner('Immagine di copertina caricata!');
+      } catch (err: any) {
+        coverStatusEl.textContent = 'Auto (grafica tecnica)';
+        showBanner(err?.message || 'Errore upload copertina.', true);
+      }
+    };
+    reader.readAsDataURL(file);
+    coverUploadInput.value = '';
+  });
+
+  coverClearBtn?.addEventListener('click', () => {
+    coverInput.value = '';
+    coverStatusEl.textContent = 'Auto (grafica tecnica)';
+    coverClearBtn.hidden = true;
   });
 
   // Assistente AI (Formatta & LaTeX)
@@ -1830,6 +1890,18 @@ const initialConfigJson = JSON.stringify(siteConfig);
     color: var(--accent);
     border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
     background: var(--accent-soft);
+  }
+
+  .cover-upload-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  .btn-sm {
+    padding: 0.42rem 0.78rem;
+    font-size: 0.82rem;
   }
 
   .view-tabs {

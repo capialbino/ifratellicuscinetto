@@ -187,6 +187,7 @@ export async function onRequestGet({ request, env }) {
           tags: Array.isArray(frontmatter.tags) ? frontmatter.tags : [],
           level: frontmatter.level || 'Intermedio',
           draft: Boolean(frontmatter.draft),
+          coverImage: frontmatter.coverImage || '',
         },
         body,
       };

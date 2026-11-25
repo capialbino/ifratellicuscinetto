@@ -14,6 +14,7 @@ const articles = defineCollection({
     tags: z.array(z.string()).default([]),
     level: z.enum(['Divulgativo', 'Intermedio', 'Tecnico / Avanzato']).default('Intermedio'),
     draft: z.boolean().default(false),
+    coverImage: z.string().optional(),
     sourceHash: z.string().optional(),
   }),
 });
