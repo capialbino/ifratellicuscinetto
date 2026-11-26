@@ -121,9 +121,11 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
         } catch {
           continue;
         }
+        const basePrefix = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '');
+        const uploadsPrefix = `${basePrefix}/uploads/`;
         if (
           validatedUrl.origin !== window.location.origin ||
-          !validatedUrl.pathname.includes('/uploads/') ||
+          !validatedUrl.pathname.startsWith(uploadsPrefix) ||
           !/\.glb$/i.test(validatedUrl.pathname)
         ) {
           continue;
@@ -168,12 +170,16 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
         renderer.toneMappingExposure = 1.1;
 
         const scene = new THREE.Scene();
-        const pmrem = new THREE.PMREMGenerator(renderer);
-        const roomEnv = new RoomEnvironment();
-        const envTex = pmrem.fromScene(roomEnv, 0.04).texture;
+        const buildEnvTex = () => {
+          const pmrem = new THREE.PMREMGenerator(renderer);
+          const roomEnv = new RoomEnvironment();
+          const tex = pmrem.fromScene(roomEnv, 0.04).texture;
+          pmrem.dispose();
+          roomEnv.dispose();
+          return tex;
+        };
+        let envTex = buildEnvTex();
         scene.environment = envTex;
-        pmrem.dispose();
-        roomEnv.dispose();
 
         const camera = new THREE.PerspectiveCamera(36, 16 / 10, 0.05, 200);
         camera.position.set(2.4, 1.7, 3.2);
@@ -304,27 +310,39 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
         };
         const onContextRestored = () => {
           contextLost = false;
+          envTex.dispose();
+          envTex = buildEnvTex();
+          scene.environment = envTex;
           scheduleRender();
         };
         canvas.addEventListener('webglcontextlost', onContextLost);
         canvas.addEventListener('webglcontextrestored', onContextRestored);
 
-        window.addEventListener(
-          'pagehide',
-          () => {
-            isDisposed = true;
+        const onPageHide = (e: PageTransitionEvent) => {
+          if (e.persisted) {
             stopLoop();
-            ro.disconnect();
-            io.disconnect();
-            canvas.removeEventListener('webglcontextlost', onContextLost);
-            canvas.removeEventListener('webglcontextrestored', onContextRestored);
-            controls.dispose();
-            disposeObject3D(scene);
-            envTex.dispose();
-            renderer.dispose();
-          },
-          { once: true }
-        );
+            return;
+          }
+          window.removeEventListener('pagehide', onPageHide);
+          window.removeEventListener('pageshow', onPageShow);
+          isDisposed = true;
+          stopLoop();
+          ro.disconnect();
+          io.disconnect();
+          canvas.removeEventListener('webglcontextlost', onContextLost);
+          canvas.removeEventListener('webglcontextrestored', onContextRestored);
+          controls.dispose();
+          disposeObject3D(scene);
+          envTex.dispose();
+          renderer.dispose();
+        };
+        const onPageShow = (e: PageTransitionEvent) => {
+          if (e.persisted && !isDisposed && !contextLost && isVisible) {
+            scheduleRender();
+          }
+        };
+        window.addEventListener('pagehide', onPageHide);
+        window.addEventListener('pageshow', onPageShow);
       }
     })();
   }

@@ -117,23 +117,28 @@ async function fetchArticlesViaGraphQL(env, repo, branch) {
     }
   `;
 
-  const res = await githubRequest(env, 'https://api.github.com/graphql', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      query,
-      variables: {
-        owner,
-        name,
-        itExpr: `${branch}:src/content/articles`,
-        enExpr: `${branch}:src/content/articles/en`,
-      },
-    }),
-  });
-
-  if (!res.ok) return null;
-  const json = await res.json();
-  if (json.errors || !json.data?.repository?.itDir?.entries) return null;
+  let res;
+  let json;
+  try {
+    res = await githubRequest(env, 'https://api.github.com/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query,
+        variables: {
+          owner,
+          name,
+          itExpr: `${branch}:src/content/articles`,
+          enExpr: `${branch}:src/content/articles/en`,
+        },
+      }),
+    });
+    if (!res.ok) return null;
+    json = await res.json();
+  } catch {
+    return null;
+  }
+  if (json?.errors || !json?.data?.repository?.itDir?.entries) return null;
 
   const enSlugs = new Set(
     (json.data.repository.enDir?.entries || [])
@@ -354,19 +359,24 @@ export async function onRequestDelete({ request, env }) {
     return jsonResponse({ error: 'Errore durante l\'eliminazione su GitHub.' }, delIt.status);
   }
 
-  // Elimina anche eventuale traduzione inglese associata
-  const enGet = await githubRequest(env, `/contents/${enPath}?ref=${encodeURIComponent(branch)}`);
-  if (enGet.ok) {
-    const enData = await enGet.json();
-    await githubRequest(env, `/contents/${enPath}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: `elimina traduzione EN: ${slug} (admin: ${auth.session.author})`,
-        sha: enData.sha,
-        branch,
-      }),
-    });
+  // Elimina anche eventuale traduzione inglese associata (.md o .mdx)
+  for (const enCandidate of [
+    `src/content/articles/en/${slug}.md`,
+    `src/content/articles/en/${slug}.mdx`,
+  ]) {
+    const enGet = await githubRequest(env, `/contents/${enCandidate}?ref=${encodeURIComponent(branch)}`);
+    if (enGet.ok) {
+      const enData = await enGet.json();
+      await githubRequest(env, `/contents/${enCandidate}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `elimina traduzione EN: ${slug} (admin: ${auth.session.author})`,
+          sha: enData.sha,
+          branch,
+        }),
+      });
+    }
   }
 
   // Elimina anche eventuale cover SVG associata

@@ -20,10 +20,21 @@ const autoCoverExt = cleanSlug
     )
   : undefined;
 
+function isSafeCoverPath(val?: string): val is string {
+  if (!val || val.includes('..') || val.includes('\\')) return false;
+  if (!/^\/(uploads|covers)\/[a-zA-Z0-9._/-]+$/.test(val)) return false;
+  try {
+    const p = new URL(val, 'https://example.invalid').pathname;
+    return p.startsWith('/uploads/') || p.startsWith('/covers/');
+  } catch {
+    return false;
+  }
+}
+
 let resolvedSrc: string | null = null;
 let isInlineSvgData = false;
 
-if (coverImage && /^\/(uploads|covers)\//.test(coverImage)) {
+if (isSafeCoverPath(coverImage)) {
   resolvedSrc = withBase(coverImage);
 } else if (autoCoverExt === 'svg' && cleanSlug) {
   const svgPath = path.resolve('public/covers', `${cleanSlug}.svg`);

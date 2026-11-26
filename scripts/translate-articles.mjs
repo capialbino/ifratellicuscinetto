@@ -57,7 +57,7 @@ function parseFrontmatter(raw) {
   for (const rawLine of match[1].split(/\r?\n/)) {
     if (/^\s*#/.test(rawLine) || !rawLine.trim()) continue;
 
-    const listMatch = rawLine.match(/^\s+-\s+(.*)$/);
+    const listMatch = rawLine.match(/^\s*-\s+(.*)$/);
     if (listMatch && currentListKey) {
       if (!Array.isArray(fm[currentListKey])) fm[currentListKey] = [];
       const itemVal = stripInlineComment(listMatch[1]);
@@ -147,10 +147,21 @@ function restoreTechnicalSegments(text, tokens, tokenPattern) {
 }
 
 function sanitizeTranslatedMarkdown(md) {
-  return String(md || '')
+  // Protegge blocchi di codice e inline code così gli identificatori Python (es. ones = ..., onset=0.5) restano intatti
+  const codeBlocks = [];
+  let safe = String(md || '').replace(/```[\s\S]*?```|`[^`\n]+`/g, (m) => {
+    const idx = codeBlocks.push(m) - 1;
+    return `@@CODE_SAFE_${idx}@@`;
+  });
+
+  safe = safe
     .replace(/<(script|iframe|object|embed|style)\b[\s\S]*?<\/\1\s*>/gi, '')
     .replace(/<\/?(script|iframe|object|embed|style)\b[^>]*\/?>/gi, '')
-    .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+    .replace(/<([a-zA-Z][a-zA-Z0-9-]*)(\s[^>]*)?>/g, (tagMatch) =>
+      tagMatch.replace(/[\s/]on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, ' ')
+    );
+
+  return safe.replace(/@@CODE_SAFE_(\d+)@@/g, (_, idx) => codeBlocks[Number(idx)] ?? '');
 }
 
 async function translateWithGemini(article) {
@@ -315,24 +326,31 @@ async function translateWithGoogleFree(article) {
 }
 
 async function translateArticle(article) {
+  let result;
   if (process.env.GEMINI_API_KEY) {
     console.log(`  -> Using Gemini API`);
     try {
-      return await translateWithGemini(article);
+      result = await translateWithGemini(article);
     } catch (err) {
       console.log(`::warning::Gemini ha fallito (${err.message.slice(0, 200)}). Uso il traduttore di riserva.`);
     }
   }
-  if (process.env.DEEPL_API_KEY) {
+  if (!result && process.env.DEEPL_API_KEY) {
     console.log(`  -> Using DeepL API`);
     try {
-      return await translateWithDeepL(article);
+      result = await translateWithDeepL(article);
     } catch (err) {
       console.log(`::warning::DeepL ha fallito (${err.message.slice(0, 200)}). Uso il traduttore di riserva.`);
     }
   }
-  console.log(`  -> Using zero-key Google Translate fallback (set GEMINI_API_KEY or DEEPL_API_KEY for higher technical quality)`);
-  return translateWithGoogleFree(article);
+  if (!result) {
+    console.log(`  -> Using zero-key Google Translate fallback (set GEMINI_API_KEY or DEEPL_API_KEY for higher technical quality)`);
+    result = await translateWithGoogleFree(article);
+  }
+  return {
+    ...result,
+    body: sanitizeTranslatedMarkdown(result.body).trim(),
+  };
 }
 
 /** Verifica che la GEMINI_API_KEY sia valida con una mini-traduzione, senza toccare gli articoli. */

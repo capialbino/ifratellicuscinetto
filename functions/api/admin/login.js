@@ -71,15 +71,24 @@ export async function onRequestPost({ request, env }) {
     );
   }
 
+  const contentLength = Number(request.headers.get('Content-Length') || 0);
+  if (Number.isFinite(contentLength) && contentLength > 4096) {
+    return jsonResponse({ error: 'Richiesta troppo grande.' }, 413);
+  }
+
   let body;
   try {
-    body = await request.json();
+    const rawText = await request.text();
+    if (rawText.length > 4096) {
+      return jsonResponse({ error: 'Richiesta troppo grande.' }, 413);
+    }
+    body = JSON.parse(rawText);
   } catch {
     return jsonResponse({ error: 'Richiesta JSON non valida.' }, 400);
   }
 
   const author = normalizeAuthorId(body?.author);
-  const password = String(body?.password || '');
+  const password = typeof body?.password === 'string' ? body.password : '';
 
   if (!(await verifyCredentials(env, author, password))) {
     recordFailedAttempt(ip, state, now);

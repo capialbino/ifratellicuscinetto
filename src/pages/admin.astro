@@ -480,8 +480,16 @@ const initialConfigJson = JSON.stringify(siteConfig);
       const codeEl = node.querySelector('code');
       const cls = codeEl?.className || '';
       const lang = (cls.match(/language-([a-z0-9_+-]+)/i) || [])[1] || '';
-      const raw = (codeEl?.textContent || node.textContent || '').replace(/\n$/, '');
-      return `\n\n\`\`\`${lang}\n${raw}\n\`\`\`\n\n`;
+      const clone = (codeEl || node).cloneNode(true) as HTMLElement;
+      clone.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
+      clone.querySelectorAll('div, p').forEach((blk) => {
+        if (blk.previousSibling) blk.before('\n');
+      });
+      const raw = (clone.textContent || '').replace(/\r\n/g, '\n').replace(/\n$/, '');
+      const backtickRuns = raw.match(/`+/g) || [];
+      const maxRun = backtickRuns.reduce((m, s) => Math.max(m, s.length), 0);
+      const fence = '`'.repeat(Math.max(3, maxRun + 1));
+      return `\n\n${fence}${lang}\n${raw}\n${fence}\n\n`;
     },
   });
 
@@ -624,6 +632,17 @@ const initialConfigJson = JSON.stringify(siteConfig);
   }
 
   const uploadedImageCache = new Map<string, string>();
+  const aiFormatBtn = document.getElementById('ai-format-btn') as HTMLButtonElement;
+  const aiUndoBtn = document.getElementById('ai-undo-btn') as HTMLButtonElement;
+  let lastAiSnapshot: {
+    title: string;
+    desc: string;
+    tags: string;
+    category: string;
+    level: string;
+    body: string;
+  } | null = null;
+  let savedVisualRange: Range | null = null;
 
   async function safeJson(res: Response): Promise<any> {
     if (res.status === 401) {
@@ -687,22 +706,44 @@ const initialConfigJson = JSON.stringify(siteConfig);
     safe = safe.replace(/@@CODE_BLOCK_(\d+)@@/g, (_, idx) => codeTokens[Number(idx)] || '');
 
     let html = marked.parse(safe) as string;
-    html = DOMPurify.sanitize(html, { ADD_ATTR: ['data-tex', 'title'] });
+    html = DOMPurify.sanitize(html, {
+      FORBID_TAGS: ['style', 'script', 'iframe', 'object', 'embed', 'form', 'input', 'textarea', 'button', 'svg', 'math'],
+      FORBID_ATTR: ['style', 'id'],
+    });
 
+    savedVisualRange = null;
     visualEditorEl.innerHTML = html || '';
 
-    // Sostituisce i segnaposto matematici SOLO nei TextNode (impossibile rompere attributi HTML)
+    // Sostituisce i segnaposto matematici SOLO nei TextNode fuori da <pre>/<code> (impossibile rompere attributi HTML)
     if (mathTokens.length > 0) {
       const walker = document.createTreeWalker(visualEditorEl, NodeFilter.SHOW_TEXT);
       const textNodes: Text[] = [];
       let current: Node | null;
       while ((current = walker.nextNode())) {
-        if (current.nodeValue && current.nodeValue.includes('@@MATH_')) {
+        if (
+          current.nodeValue &&
+          current.nodeValue.includes('@@MATH_') &&
+          !(current.parentElement && current.parentElement.closest('pre, code'))
+        ) {
           textNodes.push(current as Text);
         }
       }
       for (const textNode of textNodes) {
         const val = textNode.nodeValue || '';
+        const parent = textNode.parentElement;
+        const singleBlockMatch = val.trim().match(/^@@MATH_(\d+)@@$/);
+        if (
+          singleBlockMatch &&
+          parent &&
+          parent.tagName === 'P' &&
+          parent.childNodes.length === 1
+        ) {
+          const token = mathTokens[Number(singleBlockMatch[1])];
+          if (token?.displayMode) {
+            parent.replaceWith(createMathChipNode(token.tex, true));
+            continue;
+          }
+        }
         const parts = val.split(/(@@MATH_\d+@@)/g);
         if (parts.length <= 1) continue;
         const frag = document.createDocumentFragment();
@@ -711,7 +752,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
           if (m) {
             const token = mathTokens[Number(m[1])];
             if (token) {
-              frag.appendChild(createMathChipNode(token.tex, token.displayMode));
+              frag.appendChild(createMathChipNode(token.tex, false));
             }
           } else if (part) {
             frag.appendChild(document.createTextNode(part));
@@ -843,11 +884,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
   async function fetchArticles() {
     articlesListEl.innerHTML = '<div class="muted small">Caricamento articoli...</div>';
     const res = await fetch(`${API_BASE}/articles`);
-    if (res.status === 401) {
-      showLoginScreen();
-      return;
-    }
-    const data = await res.json();
+    const data = await safeJson(res);
     if (!res.ok) throw new Error(data.error || 'Errore caricamento articoli');
     articlesCache = data.articles || [];
     renderArticlesList();
@@ -894,7 +931,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (!res.ok) throw new Error(data.error || 'Errore salvataggio');
       editingSlug = data.slug;
       editingSha = data.sha;
@@ -929,7 +966,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug: editingSlug }),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (!res.ok) throw new Error(data.error || 'Errore eliminazione');
       await fetchArticles();
       resetFormForNew();
@@ -1019,6 +1056,13 @@ const initialConfigJson = JSON.stringify(siteConfig);
   function showLoginScreen() {
     const pwdInput = document.getElementById('login-password') as HTMLInputElement | null;
     if (pwdInput) pwdInput.value = '';
+    designLoadedFromRepo = false;
+    siteConfigSha = null;
+    articlesCache = [];
+    lastAiSnapshot = null;
+    savedVisualRange = null;
+    uploadedImageCache.clear();
+    if (aiUndoBtn) aiUndoBtn.hidden = true;
     if (authLoading) authLoading.hidden = true;
     studioView.hidden = true;
     loginView.hidden = false;
@@ -1091,7 +1135,6 @@ const initialConfigJson = JSON.stringify(siteConfig);
   slugInput.addEventListener('input', () => {
     slugManuallyEdited = true;
   });
-  bodyInput.addEventListener('input', renderPreview);
 
   const videoUploadInput = document.getElementById('video-upload-input') as HTMLInputElement;
   videoUploadInput?.addEventListener('change', () => {
@@ -1111,17 +1154,17 @@ const initialConfigJson = JSON.stringify(siteConfig);
         const data = await safeJson(res);
         if (!res.ok) throw new Error(data.error || 'Errore upload video');
         const videoUrl = String(data.url || '');
-        const label = file.name.replace(/\.(mp4|webm)$/i, '').replace(/\]/g, '\\]');
+        const rawLabel = file.name.replace(/\.(mp4|webm)$/i, '');
         if (editorMode === 'visual') {
           visualEditorEl.focus();
           document.execCommand(
             'insertHTML',
             false,
-            `<p><a href="${escapeHtml(videoUrl)}">video:${escapeHtml(label)}</a></p><p><br></p>`
+            `<p><a href="${escapeHtml(videoUrl)}">video:${escapeHtml(rawLabel)}</a></p><p><br></p>`
           );
           syncVisualToMarkdown();
         } else {
-          insertAtCursor(`\n[video:${label}](${videoUrl})\n`);
+          insertAtCursor(`\n[video:${rawLabel.replace(/\]/g, '\\]')}](${videoUrl})\n`);
         }
         showBanner('Video caricato! Nell’articolo pubblicato apparirà come animazione in loop automatico.');
       } catch (err: any) {
@@ -1150,17 +1193,17 @@ const initialConfigJson = JSON.stringify(siteConfig);
         const data = await safeJson(res);
         if (!res.ok) throw new Error(data.error || 'Errore upload modello 3D');
         const modelUrl = String(data.url || '');
-        const label = file.name.replace(/\.glb$/i, '').replace(/\]/g, '\\]');
+        const rawLabel = file.name.replace(/\.glb$/i, '');
         if (editorMode === 'visual') {
           visualEditorEl.focus();
           document.execCommand(
             'insertHTML',
             false,
-            `<p><a href="${escapeHtml(modelUrl)}">3d:${escapeHtml(label)}</a></p><p><br></p>`
+            `<p><a href="${escapeHtml(modelUrl)}">3d:${escapeHtml(rawLabel)}</a></p><p><br></p>`
           );
           syncVisualToMarkdown();
         } else {
-          insertAtCursor(`\n[3d:${label}](${modelUrl})\n`);
+          insertAtCursor(`\n[3d:${rawLabel.replace(/\]/g, '\\]')}](${modelUrl})\n`);
         }
         showBanner('Modello 3D caricato! Nell’articolo pubblicato apparirà come viewer 3D interattivo.');
       } catch (err: any) {
@@ -1191,14 +1234,14 @@ const initialConfigJson = JSON.stringify(siteConfig);
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename: `cover-${file.name}`, contentBase64: base64, slug }),
         });
-        const data = await res.json();
+        const data = await safeJson(res);
         if (!res.ok) throw new Error(data.error || 'Errore upload copertina');
-        coverInput.value = data.url;
+        coverInput.value = String(data.url || '');
         coverStatusEl.textContent = file.name;
         coverClearBtn.hidden = false;
         showBanner(/\.(mp4|webm)$/i.test(file.name) ? 'Copertina video 3D caricata!' : 'Immagine di copertina caricata!');
       } catch (err: any) {
-        coverStatusEl.textContent = 'Auto (grafica tecnica)';
+        coverStatusEl.textContent = coverInput.value ? 'Copertina personalizzata' : 'Auto (grafica tecnica)';
         showBanner(err?.message || 'Errore upload copertina.', true);
       }
     };
@@ -1212,18 +1255,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
     coverClearBtn.hidden = true;
   });
 
-  // Assistente AI (Formatta & LaTeX)
-  const aiFormatBtn = document.getElementById('ai-format-btn') as HTMLButtonElement;
-  const aiUndoBtn = document.getElementById('ai-undo-btn') as HTMLButtonElement;
-  let lastAiSnapshot: {
-    title: string;
-    desc: string;
-    tags: string;
-    category: string;
-    level: string;
-    body: string;
-  } | null = null;
-
+  // Assistente AI
   async function runAiFormat() {
     syncVisualToMarkdown();
     const body = bodyInput.value.trim();
@@ -1232,7 +1264,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
       return;
     }
 
-    lastAiSnapshot = {
+    const pendingSnapshot = {
       title: titleInput.value,
       desc: descInput.value,
       tags: tagsInput.value,
@@ -1256,9 +1288,10 @@ const initialConfigJson = JSON.stringify(siteConfig);
           body,
         }),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (!res.ok) throw new Error(data.error || 'Errore AI');
       const r = data.result || {};
+      lastAiSnapshot = pendingSnapshot;
 
       if (r.body) {
         bodyInput.value = r.body;
@@ -1336,7 +1369,6 @@ const initialConfigJson = JSON.stringify(siteConfig);
 
   // Dropdown stile paragrafo (stile Word: Testo normale / Titolo / Sottotitolo / Citazione)
   const blockStyleSelect = document.getElementById('block-style-select') as HTMLSelectElement | null;
-  let savedVisualRange: Range | null = null;
 
   function saveVisualSelection() {
     const sel = window.getSelection();
@@ -1348,7 +1380,10 @@ const initialConfigJson = JSON.stringify(siteConfig);
   }
 
   function restoreVisualSelection() {
-    if (!savedVisualRange) return;
+    if (!savedVisualRange || !visualEditorEl.contains(savedVisualRange.commonAncestorContainer)) {
+      savedVisualRange = null;
+      return;
+    }
     const sel = window.getSelection();
     if (!sel) return;
     sel.removeAllRanges();
@@ -1360,8 +1395,8 @@ const initialConfigJson = JSON.stringify(siteConfig);
     if (editorMode === 'visual') {
       visualEditorEl.focus();
       restoreVisualSelection();
-      if (tag === 'p') {
-        // Sblocca eventuale <blockquote> che formatBlock('p') non rimuove su Chromium/WebKit
+      if (tag !== 'blockquote') {
+        // Sblocca eventuale <blockquote> prima di passare a p/h2/h3
         const sel = window.getSelection();
         let node = sel?.anchorNode as Node | null;
         while (node && node !== visualEditorEl) {
@@ -1474,7 +1509,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
             const url = prompt('Inserisci URL del link:', 'https://');
             if (url) {
               const trimmed = url.trim();
-              if (/^(https?:\/\/|mailto:|\/)/i.test(trimmed)) {
+              if (/^(?:https?:\/\/|mailto:|\/(?!\/))/i.test(trimmed)) {
                 document.execCommand('createLink', false, trimmed);
               } else {
                 showBanner('URL non valido. Usa https://, http://, mailto: oppure un percorso relativo (/).', true);
@@ -1732,14 +1767,14 @@ const initialConfigJson = JSON.stringify(siteConfig);
     if (designLoadedFromRepo) return;
     try {
       const res = await fetch(`${API_BASE}/site-config`);
-      if (res.ok) {
-        const data = await res.json();
+      const data = await safeJson(res);
+      if (res.ok && data?.config) {
         currentSiteConfig = data.config;
         siteConfigSha = data.sha;
         designLoadedFromRepo = true;
       }
     } catch {
-      // Usa initialConfig come fallback
+      // Se 401 safeJson ha già mostrato il login; altri errori usano initialConfig come fallback
     }
     populateDesignForm(currentSiteConfig);
   }
@@ -1756,7 +1791,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ config: cfg, sha: siteConfigSha || undefined }),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (!res.ok) throw new Error(data.error || 'Errore salvataggio design');
       siteConfigSha = data.sha || siteConfigSha;
       showDesignBanner('Design e testi salvati su GitHub! Il sito si aggiornerà entro 1-2 minuti.');
@@ -1787,6 +1822,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
       currentSiteConfig.theme.preset = preset;
       currentSiteConfig.theme.accentLight = colors.accentLight;
       currentSiteConfig.theme.accentDark = colors.accentDark;
+      document.documentElement.classList.toggle('dark', preset === 'obsidian');
       populateDesignForm(currentSiteConfig);
     });
   });

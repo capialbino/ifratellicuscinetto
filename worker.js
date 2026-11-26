@@ -26,10 +26,11 @@ const METHOD_MAP = {
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'DELETE', 'PATCH']);
 
 const API_CSP = "default-src 'none'; frame-ancestors 'none'";
+const SANDBOX_ASSET_CSP = "default-src 'none'; sandbox; frame-ancestors 'none'";
 const DEFAULT_PAGE_CSP =
   "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
 
-function withSecurityHeaders(response, isApi = false) {
+function withSecurityHeaders(response, isApi = false, pathname = '') {
   const headers = new Headers(response.headers);
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('X-Frame-Options', 'DENY');
@@ -38,6 +39,11 @@ function withSecurityHeaders(response, isApi = false) {
   headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   if (isApi) {
     headers.set('Content-Security-Policy', API_CSP);
+    if (!headers.has('Cache-Control')) {
+      headers.set('Cache-Control', 'no-store');
+    }
+  } else if (/^\/(?:covers|uploads)\//.test(pathname)) {
+    headers.set('Content-Security-Policy', SANDBOX_ASSET_CSP);
   } else if (!headers.has('Content-Security-Policy')) {
     headers.set('Content-Security-Policy', DEFAULT_PAGE_CSP);
   }
@@ -129,9 +135,19 @@ export default {
       );
     }
 
+    if (pathname.startsWith('/api/')) {
+      return withSecurityHeaders(
+        new Response(JSON.stringify({ error: 'Not Found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        }),
+        true
+      );
+    }
+
     if (env.ASSETS) {
       const assetRes = await env.ASSETS.fetch(request);
-      return withSecurityHeaders(assetRes, false);
+      return withSecurityHeaders(assetRes, false, pathname);
     }
 
     return withSecurityHeaders(new Response('Not Found', { status: 404 }), true);

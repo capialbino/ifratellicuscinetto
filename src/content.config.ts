@@ -16,7 +16,17 @@ const articles = defineCollection({
     draft: z.boolean().default(false),
     coverImage: z
       .string()
-      .regex(/^\/(uploads|covers)\//, 'coverImage must start with /uploads/ or /covers/')
+      .refine((v) => {
+        if (v.includes('..') || v.includes('\\') || !/^\/(uploads|covers)\/[a-zA-Z0-9._/-]+$/.test(v)) {
+          return false;
+        }
+        try {
+          const p = new URL(v, 'https://example.invalid').pathname;
+          return p.startsWith('/uploads/') || p.startsWith('/covers/');
+        } catch {
+          return false;
+        }
+      }, 'coverImage must be a safe path under /uploads/ or /covers/')
       .optional(),
     sourceHash: z.string().optional(),
   }),
