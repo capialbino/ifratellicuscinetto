@@ -23,11 +23,8 @@ const autoCoverExt = cleanSlug
 let resolvedSrc: string | null = null;
 let isInlineSvgData = false;
 
-if (coverImage) {
-  resolvedSrc =
-    coverImage.startsWith('http://') || coverImage.startsWith('https://')
-      ? coverImage
-      : withBase(coverImage);
+if (coverImage && /^\/(uploads|covers)\//.test(coverImage)) {
+  resolvedSrc = withBase(coverImage);
 } else if (autoCoverExt === 'svg' && cleanSlug) {
   const svgPath = path.resolve('public/covers', `${cleanSlug}.svg`);
   const svgBuf = fs.readFileSync(svgPath);

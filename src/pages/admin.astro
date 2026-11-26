@@ -506,6 +506,11 @@ const initialConfigJson = JSON.stringify(siteConfig);
     },
   });
 
+  turndown.addRule('strikethrough', {
+    filter: ['del', 's', 'strike'],
+    replacement: (content) => (content ? `~~${content}~~` : ''),
+  });
+
   turndown.addRule('uploadedImg', {
     filter: 'img',
     replacement: (_content, node) => {
@@ -618,19 +623,42 @@ const initialConfigJson = JSON.stringify(siteConfig);
       .slice(0, 90);
   }
 
-  function createMathChipHtml(tex: string, displayMode: boolean): string {
-    const cleanTex = tex.trim();
-    const rendered = katex.renderToString(cleanTex, { displayMode, throwOnError: false });
-    const escapedTex = escapeHtml(cleanTex);
-    if (displayMode) {
-      return `<div class="math-block-chip" contenteditable="false" data-tex="${escapedTex}" title="Clicca per modificare la formula">${rendered}</div>`;
+  const uploadedImageCache = new Map<string, string>();
+
+  async function safeJson(res: Response): Promise<any> {
+    if (res.status === 401) {
+      showLoginScreen();
+      throw new Error('Sessione scaduta. Effettua nuovamente l’accesso.');
     }
-    return `<span class="math-chip" contenteditable="false" data-tex="${escapedTex}" title="Clicca per modificare la formula">${rendered}</span>`;
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error(`Risposta inattesa dal server (HTTP ${res.status}).`);
+    }
+    return res.json();
+  }
+
+  function createMathChipNode(tex: string, displayMode: boolean): HTMLElement {
+    const cleanTex = tex.trim();
+    const el = document.createElement(displayMode ? 'div' : 'span');
+    el.className = displayMode ? 'math-block-chip' : 'math-chip';
+    el.setAttribute('contenteditable', 'false');
+    el.dataset.tex = cleanTex;
+    el.title = 'Clicca per modificare la formula';
+    el.innerHTML = katex.renderToString(cleanTex, {
+      displayMode,
+      throwOnError: false,
+      trust: false,
+    });
+    return el;
+  }
+
+  function createMathChipHtml(tex: string, displayMode: boolean): string {
+    return createMathChipNode(tex, displayMode).outerHTML;
   }
 
   function renderPreview() {
     const raw = bodyInput.value || '';
-    const mathTokens: string[] = [];
+    const mathTokens: Array<{ tex: string; displayMode: boolean }> = [];
 
     // Protegge blocchi di codice e codice inline da sostituzioni LaTeX
     const codeTokens: string[] = [];
@@ -643,36 +671,67 @@ const initialConfigJson = JSON.stringify(siteConfig);
       return `@@CODE_BLOCK_${id}@@`;
     });
 
-    // Render $$...$$ display math
+    // Segnaposto per $$...$$ display math
     safe = safe.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => {
-      try {
-        const chip = createMathChipHtml(tex, true);
-        const id = mathTokens.push(chip) - 1;
-        return `\n\n@@MATH_${id}@@\n\n`;
-      } catch {
-        return _;
-      }
+      const id = mathTokens.push({ tex, displayMode: true }) - 1;
+      return `\n\n@@MATH_${id}@@\n\n`;
     });
 
-    // Render $...$ inline math
-    safe = safe.replace(/(^|[^\\$])\$([^\n$]+?)\$/g, (full, prefix, tex) => {
-      try {
-        const chip = createMathChipHtml(tex, false);
-        const id = mathTokens.push(chip) - 1;
-        return `${prefix}@@MATH_${id}@@`;
-      } catch {
-        return full;
-      }
+    // Segnaposto per $...$ inline math
+    safe = safe.replace(/(^|[^\\$])\$([^\n$]+?)\$/g, (_full, prefix, tex) => {
+      const id = mathTokens.push({ tex, displayMode: false }) - 1;
+      return `${prefix}@@MATH_${id}@@`;
     });
 
     // Ripristina i blocchi di codice prima di marked
     safe = safe.replace(/@@CODE_BLOCK_(\d+)@@/g, (_, idx) => codeTokens[Number(idx)] || '');
 
     let html = marked.parse(safe) as string;
-    html = DOMPurify.sanitize(html, { ADD_ATTR: ['data-tex', 'contenteditable', 'title'] });
-    html = html.replace(/@@MATH_(\d+)@@/g, (_, idx) => mathTokens[Number(idx)] || '');
+    html = DOMPurify.sanitize(html, { ADD_ATTR: ['data-tex', 'title'] });
 
     visualEditorEl.innerHTML = html || '';
+
+    // Sostituisce i segnaposto matematici SOLO nei TextNode (impossibile rompere attributi HTML)
+    if (mathTokens.length > 0) {
+      const walker = document.createTreeWalker(visualEditorEl, NodeFilter.SHOW_TEXT);
+      const textNodes: Text[] = [];
+      let current: Node | null;
+      while ((current = walker.nextNode())) {
+        if (current.nodeValue && current.nodeValue.includes('@@MATH_')) {
+          textNodes.push(current as Text);
+        }
+      }
+      for (const textNode of textNodes) {
+        const val = textNode.nodeValue || '';
+        const parts = val.split(/(@@MATH_\d+@@)/g);
+        if (parts.length <= 1) continue;
+        const frag = document.createDocumentFragment();
+        for (const part of parts) {
+          const m = part.match(/^@@MATH_(\d+)@@$/);
+          if (m) {
+            const token = mathTokens[Number(m[1])];
+            if (token) {
+              frag.appendChild(createMathChipNode(token.tex, token.displayMode));
+            }
+          } else if (part) {
+            frag.appendChild(document.createTextNode(part));
+          }
+        }
+        textNode.parentNode?.replaceChild(frag, textNode);
+      }
+    }
+
+    // Ripristina le anteprime locali (dataUrl) delle immagini appena caricate prima del deploy
+    if (uploadedImageCache.size > 0) {
+      visualEditorEl.querySelectorAll('img').forEach((img) => {
+        const src = img.getAttribute('src') || '';
+        const cached = uploadedImageCache.get(src);
+        if (cached) {
+          img.setAttribute('data-upload-url', src);
+          img.src = cached;
+        }
+      });
+    }
   }
 
   function syncVisualToMarkdown(): string {
@@ -687,6 +746,8 @@ const initialConfigJson = JSON.stringify(siteConfig);
     editingSlug = null;
     editingSha = null;
     slugManuallyEdited = false;
+    lastAiSnapshot = null;
+    if (aiUndoBtn) aiUndoBtn.hidden = true;
     titleInput.value = '';
     slugInput.value = '';
     slugInput.disabled = false;
@@ -712,6 +773,8 @@ const initialConfigJson = JSON.stringify(siteConfig);
     editingSlug = art.slug;
     editingSha = art.sha;
     slugManuallyEdited = true;
+    lastAiSnapshot = null;
+    if (aiUndoBtn) aiUndoBtn.hidden = true;
     titleInput.value = art.frontmatter.title;
     slugInput.value = art.slug;
     slugInput.disabled = true;
@@ -892,9 +955,12 @@ const initialConfigJson = JSON.stringify(siteConfig);
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename: file.name, contentBase64: base64, slug }),
         });
-        const data = await res.json();
+        const data = await safeJson(res);
         if (!res.ok) throw new Error(data.error || 'Errore upload immagine');
         const imageUrl = String(data.url || '');
+        if (imageUrl && dataUrl) {
+          uploadedImageCache.set(imageUrl, dataUrl);
+        }
 
         if (editorMode === 'visual') {
           visualEditorEl.focus();
@@ -906,7 +972,7 @@ const initialConfigJson = JSON.stringify(siteConfig);
           );
           syncVisualToMarkdown();
         } else {
-          insertAtCursor(`\n![${file.name.replace(/\.[^.]+$/, '')}](${imageUrl})\n`);
+          insertAtCursor(`\n![${file.name.replace(/\.[^.]+$/, '').replace(/\]/g, '\\]')}](${imageUrl})\n`);
         }
         showBanner('Immagine caricata e inserita nell’articolo!');
       } catch (err: any) {
@@ -924,8 +990,11 @@ const initialConfigJson = JSON.stringify(siteConfig);
     const textToInsert =
       wrapStart && wrapEnd ? `${wrapStart}${selected || snippet}${wrapEnd}` : snippet;
 
-    bodyInput.setRangeText(textToInsert, start, end, 'end');
     bodyInput.focus();
+    bodyInput.setSelectionRange(start, end);
+    if (!document.execCommand('insertText', false, textToInsert)) {
+      bodyInput.setRangeText(textToInsert, start, end, 'end');
+    }
     renderPreview();
   }
 
@@ -933,6 +1002,8 @@ const initialConfigJson = JSON.stringify(siteConfig);
 
   function enterStudio(authorId: string) {
     currentAuthor = authorId;
+    const pwdInput = document.getElementById('login-password') as HTMLInputElement | null;
+    if (pwdInput) pwdInput.value = '';
     if (authLoading) authLoading.hidden = true;
     loginView.hidden = true;
     studioView.hidden = false;
@@ -946,6 +1017,8 @@ const initialConfigJson = JSON.stringify(siteConfig);
   }
 
   function showLoginScreen() {
+    const pwdInput = document.getElementById('login-password') as HTMLInputElement | null;
+    if (pwdInput) pwdInput.value = '';
     if (authLoading) authLoading.hidden = true;
     studioView.hidden = true;
     loginView.hidden = false;
@@ -1035,19 +1108,20 @@ const initialConfigJson = JSON.stringify(siteConfig);
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename: file.name, contentBase64: base64, slug }),
         });
-        const data = await res.json();
+        const data = await safeJson(res);
         if (!res.ok) throw new Error(data.error || 'Errore upload video');
-        const label = file.name.replace(/\.(mp4|webm)$/i, '');
+        const videoUrl = String(data.url || '');
+        const label = file.name.replace(/\.(mp4|webm)$/i, '').replace(/\]/g, '\\]');
         if (editorMode === 'visual') {
           visualEditorEl.focus();
           document.execCommand(
             'insertHTML',
             false,
-            `<p><a href="${escapeHtml(data.url)}">video:${escapeHtml(label)}</a></p><p><br></p>`
+            `<p><a href="${escapeHtml(videoUrl)}">video:${escapeHtml(label)}</a></p><p><br></p>`
           );
           syncVisualToMarkdown();
         } else {
-          insertAtCursor(`\n[video:${label}](${data.url})\n`);
+          insertAtCursor(`\n[video:${label}](${videoUrl})\n`);
         }
         showBanner('Video caricato! Nell’articolo pubblicato apparirà come animazione in loop automatico.');
       } catch (err: any) {
@@ -1073,19 +1147,20 @@ const initialConfigJson = JSON.stringify(siteConfig);
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename: file.name, contentBase64: base64, slug }),
         });
-        const data = await res.json();
+        const data = await safeJson(res);
         if (!res.ok) throw new Error(data.error || 'Errore upload modello 3D');
-        const label = file.name.replace(/\.glb$/i, '');
+        const modelUrl = String(data.url || '');
+        const label = file.name.replace(/\.glb$/i, '').replace(/\]/g, '\\]');
         if (editorMode === 'visual') {
           visualEditorEl.focus();
           document.execCommand(
             'insertHTML',
             false,
-            `<p><a href="${escapeHtml(String(data.url || ''))}">3d:${escapeHtml(label)}</a></p><p><br></p>`
+            `<p><a href="${escapeHtml(modelUrl)}">3d:${escapeHtml(label)}</a></p><p><br></p>`
           );
           syncVisualToMarkdown();
         } else {
-          insertAtCursor(`\n[3d:${label}](${data.url})\n`);
+          insertAtCursor(`\n[3d:${label}](${modelUrl})\n`);
         }
         showBanner('Modello 3D caricato! Nell’articolo pubblicato apparirà come viewer 3D interattivo.');
       } catch (err: any) {
@@ -1256,16 +1331,49 @@ const initialConfigJson = JSON.stringify(siteConfig);
     }
     const isBlock = chip.classList.contains('math-block-chip');
     chip.dataset.tex = clean;
-    chip.innerHTML = katex.renderToString(clean, { displayMode: isBlock, throwOnError: false });
+    chip.innerHTML = katex.renderToString(clean, { displayMode: isBlock, throwOnError: false, trust: false });
   });
 
   // Dropdown stile paragrafo (stile Word: Testo normale / Titolo / Sottotitolo / Citazione)
   const blockStyleSelect = document.getElementById('block-style-select') as HTMLSelectElement | null;
+  let savedVisualRange: Range | null = null;
+
+  function saveVisualSelection() {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    if (visualEditorEl.contains(range.commonAncestorContainer)) {
+      savedVisualRange = range.cloneRange();
+    }
+  }
+
+  function restoreVisualSelection() {
+    if (!savedVisualRange) return;
+    const sel = window.getSelection();
+    if (!sel) return;
+    sel.removeAllRanges();
+    sel.addRange(savedVisualRange);
+  }
+
   blockStyleSelect?.addEventListener('change', () => {
     const tag = blockStyleSelect.value;
     if (editorMode === 'visual') {
       visualEditorEl.focus();
+      restoreVisualSelection();
+      if (tag === 'p') {
+        // Sblocca eventuale <blockquote> che formatBlock('p') non rimuove su Chromium/WebKit
+        const sel = window.getSelection();
+        let node = sel?.anchorNode as Node | null;
+        while (node && node !== visualEditorEl) {
+          if (node.nodeType === 1 && (node as HTMLElement).tagName.toLowerCase() === 'blockquote') {
+            document.execCommand('outdent');
+            break;
+          }
+          node = node.parentNode;
+        }
+      }
       document.execCommand('formatBlock', false, tag);
+      saveVisualSelection();
       updateToolbarState();
       return;
     }
@@ -1312,7 +1420,10 @@ const initialConfigJson = JSON.stringify(siteConfig);
   }
 
   document.addEventListener('selectionchange', () => {
-    if (document.activeElement === visualEditorEl) updateToolbarState();
+    if (document.activeElement === visualEditorEl) {
+      saveVisualSelection();
+      updateToolbarState();
+    }
   });
   visualEditorEl.addEventListener('keyup', updateToolbarState);
   visualEditorEl.addEventListener('mouseup', updateToolbarState);
@@ -1406,9 +1517,11 @@ const initialConfigJson = JSON.stringify(siteConfig);
 
       switch (type) {
         case 'undo':
+          bodyInput.focus();
           document.execCommand('undo');
           break;
         case 'redo':
+          bodyInput.focus();
           document.execCommand('redo');
           break;
         case 'p':
@@ -1519,11 +1632,15 @@ const initialConfigJson = JSON.stringify(siteConfig);
     designBanner.hidden = false;
   }
 
+  const HEX_RE = /^#[0-9a-f]{6}$/i;
+
   function applyLiveDesignPreview(cfg: any) {
     const html = document.documentElement;
     html.dataset.preset = cfg.theme.preset;
-    html.style.setProperty('--user-accent-light', cfg.theme.accentLight);
-    html.style.setProperty('--user-accent-dark', cfg.theme.accentDark);
+    const accentLight = HEX_RE.test(cfg.theme.accentLight) ? cfg.theme.accentLight : '#0071e3';
+    const accentDark = HEX_RE.test(cfg.theme.accentDark) ? cfg.theme.accentDark : '#2997ff';
+    html.style.setProperty('--user-accent-light', accentLight);
+    html.style.setProperty('--user-accent-dark', accentDark);
     const radMap: Record<string, [string, string]> = {
       sharp: ['10px', '8px'],
       ive: ['22px', '12px'],
@@ -1532,6 +1649,14 @@ const initialConfigJson = JSON.stringify(siteConfig);
     const [cardR, ctrlR] = radMap[cfg.theme.radius] || radMap.ive;
     html.style.setProperty('--radius-card', cardR);
     html.style.setProperty('--radius-control', ctrlR);
+    const spaceMap: Record<string, [string, string]> = {
+      airy: ['clamp(4.5rem, 10vw, 7.5rem)', '3.5rem'],
+      balanced: ['clamp(3.25rem, 7vw, 5.25rem)', '2.5rem'],
+      compact: ['clamp(2.25rem, 5vw, 3.5rem)', '1.75rem'],
+    };
+    const [heroPad, sectionGap] = spaceMap[cfg.theme.spacing] || spaceMap.airy;
+    html.style.setProperty('--hero-pad-y', heroPad);
+    html.style.setProperty('--section-gap', sectionGap);
     html.style.setProperty(
       '--font-heading',
       cfg.theme.headingFont === 'serif' ? 'var(--font-serif)' : 'var(--font-display)'
@@ -1568,6 +1693,8 @@ const initialConfigJson = JSON.stringify(siteConfig);
   }
 
   function readDesignFormIntoConfig() {
+    const rawLight = cfgEl.accentLightHex.value.trim();
+    const rawDark = cfgEl.accentDarkHex.value.trim();
     currentSiteConfig = {
       ...currentSiteConfig,
       brand: {
@@ -1578,8 +1705,8 @@ const initialConfigJson = JSON.stringify(siteConfig);
       },
       theme: {
         ...currentSiteConfig.theme,
-        accentLight: cfgEl.accentLightHex.value.trim() || '#0071e3',
-        accentDark: cfgEl.accentDarkHex.value.trim() || '#2997ff',
+        accentLight: HEX_RE.test(rawLight) ? rawLight : currentSiteConfig.theme.accentLight || '#0071e3',
+        accentDark: HEX_RE.test(rawDark) ? rawDark : currentSiteConfig.theme.accentDark || '#2997ff',
         headingFont: cfgEl.headingFont.value,
         proseFont: cfgEl.proseFont.value,
         radius: cfgEl.radius.value,

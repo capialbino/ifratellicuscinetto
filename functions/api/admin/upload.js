@@ -36,13 +36,23 @@ function hasValidMagicBytes(ext, contentBase64) {
   const ascii = (start, end) => String.fromCharCode(...b.slice(start, end));
 
   if (ext === '.png') {
-    return b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
+    return (
+      b[0] === 0x89 &&
+      b[1] === 0x50 &&
+      b[2] === 0x4e &&
+      b[3] === 0x47 &&
+      b[4] === 0x0d &&
+      b[5] === 0x0a &&
+      b[6] === 0x1a &&
+      b[7] === 0x0a
+    );
   }
   if (ext === '.jpg' || ext === '.jpeg') {
     return b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
   }
   if (ext === '.gif') {
-    return b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38;
+    const sig = ascii(0, 6);
+    return sig === 'GIF87a' || sig === 'GIF89a';
   }
   if (ext === '.webp') {
     return ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP';
@@ -52,7 +62,8 @@ function hasValidMagicBytes(ext, contentBase64) {
     return box === 'ftypavif' || box === 'ftypavis';
   }
   if (ext === '.glb') {
-    return ascii(0, 4) === 'glTF';
+    // glTF 2.0 binary header: 'glTF' + uint32LE version === 2
+    return ascii(0, 4) === 'glTF' && b[4] === 2 && b[5] === 0 && b[6] === 0 && b[7] === 0;
   }
   if (ext === '.mp4') {
     return ascii(4, 8) === 'ftyp';
@@ -61,6 +72,37 @@ function hasValidMagicBytes(ext, contentBase64) {
     return b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3;
   }
   return false;
+}
+
+async function readJsonWithByteLimit(request, maxBytes) {
+  if (!request.body) return null;
+  const reader = request.body.getReader();
+  const chunks = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => {});
+        const err = new Error('PAYLOAD_TOO_LARGE');
+        err.code = 'PAYLOAD_TOO_LARGE';
+        throw err;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  const text = new TextDecoder().decode(merged);
+  return JSON.parse(text);
 }
 
 export async function onRequestPost({ request, env }) {
@@ -76,8 +118,11 @@ export async function onRequestPost({ request, env }) {
 
   let body;
   try {
-    body = await request.json();
-  } catch {
+    body = await readJsonWithByteLimit(request, MAX_REQUEST_BYTES);
+  } catch (err) {
+    if (err?.code === 'PAYLOAD_TOO_LARGE') {
+      return jsonResponse({ error: 'Richiesta troppo grande (massimo 15 MB).' }, 413);
+    }
     return jsonResponse({ error: 'Richiesta JSON non valida.' }, 400);
   }
 
@@ -101,7 +146,11 @@ export async function onRequestPost({ request, env }) {
     .replace(/^data:[^;]+;base64,/, '')
     .replace(/\s+/g, '');
 
-  if (!contentBase64 || !/^[A-Za-z0-9+/=]+$/.test(contentBase64)) {
+  if (
+    !contentBase64 ||
+    contentBase64.length % 4 !== 0 ||
+    !/^[A-Za-z0-9+/]+={0,2}$/.test(contentBase64)
+  ) {
     return jsonResponse({ error: 'File vuoto o non valido.' }, 400);
   }
 

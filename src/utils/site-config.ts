@@ -55,8 +55,8 @@ const SPACING_MAP: Record<SiteConfig['theme']['spacing'], { heroPad: string; sec
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 
 export function buildThemeStyleVars(cfg: SiteConfig = siteConfig): string {
-  const rad = RADIUS_MAP[cfg.theme.radius] ?? RADIUS_MAP.ive;
-  const space = SPACING_MAP[cfg.theme.spacing] ?? SPACING_MAP.airy;
+  const rad = Object.hasOwn(RADIUS_MAP, cfg.theme.radius) ? RADIUS_MAP[cfg.theme.radius] : RADIUS_MAP.ive;
+  const space = Object.hasOwn(SPACING_MAP, cfg.theme.spacing) ? SPACING_MAP[cfg.theme.spacing] : SPACING_MAP.airy;
   const headingVar = cfg.theme.headingFont === 'serif' ? 'var(--font-serif)' : 'var(--font-display)';
   const proseVar = cfg.theme.proseFont === 'serif' ? 'var(--font-serif)' : 'var(--font-sans)';
   const accentLight = HEX_COLOR.test(cfg.theme.accentLight) ? cfg.theme.accentLight : '#0071e3';

@@ -96,10 +96,10 @@ const languageSwitchHref = locale === 'it' ? '/en/' : '/';
   <section class="container catalog-section" aria-label={locale === 'it' ? 'Archivio articoli' : 'Article archive'}>
     <div class="filter-bar">
       <div class="category-pills" role="tablist" aria-label={locale === 'it' ? 'Filtra per area' : 'Filter by topic'}>
-        <button type="button" class="pill active" data-cat="all">{locale === 'it' ? 'Tutti' : 'All'} ({articles.length})</button>
-        <button type="button" class="pill" data-cat="meccatronica-hybrid">{locale === 'it' ? 'Meccanica × AI' : 'Mechanical × AI'}</button>
-        <button type="button" class="pill" data-cat="meccanica">{locale === 'it' ? 'Meccanica' : 'Mechanical Engineering'}</button>
-        <button type="button" class="pill" data-cat="ai-software">AI &amp; Software</button>
+        <button type="button" role="tab" aria-selected="true" class="pill active" data-cat="all">{locale === 'it' ? 'Tutti' : 'All'} ({articles.length})</button>
+        <button type="button" role="tab" aria-selected="false" class="pill" data-cat="meccatronica-hybrid">{locale === 'it' ? 'Meccanica × AI' : 'Mechanical × AI'}</button>
+        <button type="button" role="tab" aria-selected="false" class="pill" data-cat="meccanica">{locale === 'it' ? 'Meccanica' : 'Mechanical Engineering'}</button>
+        <button type="button" role="tab" aria-selected="false" class="pill" data-cat="ai-software">AI &amp; Software</button>
       </div>
 
       <div class="filter-controls">
@@ -158,21 +158,27 @@ const languageSwitchHref = locale === 'it' ? '/en/' : '/';
     // Copertine video 3D (.mp4/.webm): riproduzione solo quando visibili in viewport
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const coverVideos = Array.from(document.querySelectorAll('video[data-autoplay-cover]'));
-    if (coverVideos.length > 0 && !reduceMotion && 'IntersectionObserver' in window) {
-      const videoObserver = new IntersectionObserver(
-        (entries) => {
-          for (const entry of entries) {
-            const vid = entry.target;
-            if (entry.isIntersecting) {
-              vid.play().catch(() => {});
-            } else {
-              vid.pause();
+    if (coverVideos.length > 0) {
+      if (reduceMotion) {
+        coverVideos.forEach((v) => {
+          v.controls = true;
+        });
+      } else if ('IntersectionObserver' in window) {
+        const videoObserver = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              const vid = entry.target;
+              if (entry.isIntersecting) {
+                vid.play().catch(() => {});
+              } else {
+                vid.pause();
+              }
             }
-          }
-        },
-        { threshold: 0.2 }
-      );
-      coverVideos.forEach((v) => videoObserver.observe(v));
+          },
+          { threshold: 0.2 }
+        );
+        coverVideos.forEach((v) => videoObserver.observe(v));
+      }
     }
 
     if (!grid) return;
@@ -185,6 +191,8 @@ const languageSwitchHref = locale === 'it' ? '/en/' : '/';
       const author = authorSelect?.value || 'all';
       const isFiltering = activeCat !== 'all' || author !== 'all' || Boolean(q);
       let visible = 0;
+
+      grid.classList.toggle('is-filtering', isFiltering);
 
       if (featuredSection) {
         featuredSection.hidden = isFiltering;
@@ -212,8 +220,12 @@ const languageSwitchHref = locale === 'it' ? '/en/' : '/';
 
     for (const pill of pills) {
       pill.addEventListener('click', () => {
-        pills.forEach((p) => p.classList.remove('active'));
+        pills.forEach((p) => {
+          p.classList.remove('active');
+          p.setAttribute('aria-selected', 'false');
+        });
         pill.classList.add('active');
+        pill.setAttribute('aria-selected', 'true');
         activeCat = pill.dataset.cat || 'all';
         applyFilters();
       });
@@ -491,6 +503,10 @@ const languageSwitchHref = locale === 'it' ? '/en/' : '/';
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
     gap: 1.5rem;
+  }
+
+  .articles-grid:not(.is-filtering) .is-featured-dup {
+    display: none;
   }
 
   .grid-slot {

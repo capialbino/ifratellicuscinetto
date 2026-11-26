@@ -46,7 +46,8 @@ const { locale = 'it' } = Astro.props;
     const scene = new THREE.Scene();
     const pmrem = new THREE.PMREMGenerator(renderer);
     const roomEnv = new RoomEnvironment();
-    scene.environment = pmrem.fromScene(roomEnv, 0.04).texture;
+    const envTex = pmrem.fromScene(roomEnv, 0.04).texture;
+    scene.environment = envTex;
     pmrem.dispose();
     roomEnv.dispose();
 
@@ -166,37 +167,26 @@ const { locale = 'it' } = Astro.props;
     cageTorusBack.position.z = -0.14;
     cageGroup.add(cageTorusBack);
 
-    // Resize responsive
-    function resize() {
-      const width = stage.clientWidth || 320;
-      const height = stage.clientHeight || 320;
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-      renderer.setSize(width, height, false);
-    }
-    const ro = new ResizeObserver(resize);
-    ro.observe(stage);
-    resize();
-
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let isPlaying = !prefersReduced;
-
-    if (toggleBtn) {
-      const isEn = document.documentElement.lang === 'en';
-      const updateLabel = () => {
-        toggleBtn.textContent = isPlaying ? (isEn ? 'Pause' : 'Pausa') : isEn ? 'Play' : 'Avvia';
-      };
-      updateLabel();
-      toggleBtn.addEventListener('click', () => {
-        isPlaying = !isPlaying;
-        updateLabel();
-      });
-    }
-
+    let isVisible = false;
+    let isInteracting = false;
+    let inTick = false;
+    let contextLost = false;
+    let isDisposed = false;
     let rafId: number | null = null;
     let prevTime = performance.now();
+
+    const stopLoop = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+    };
+
     function animate(now: number) {
-      rafId = requestAnimationFrame(animate);
+      rafId = null;
+      if (isDisposed || contextLost || !isVisible) return;
       const dt = Math.min((now - prevTime) / 1000, 0.05);
       prevTime = now;
 
@@ -209,29 +199,111 @@ const { locale = 'it' } = Astro.props;
         }
       }
 
-      controls.update();
+      inTick = true;
+      const changed = controls.update();
+      inTick = false;
       renderer.render(scene, camera);
+
+      if (isPlaying || isInteracting || changed) {
+        rafId = requestAnimationFrame(animate);
+      }
     }
 
-    const startLoop = () => {
+    const scheduleRender = () => {
+      if (isDisposed || contextLost || !isVisible || inTick) return;
       if (rafId === null) {
         prevTime = performance.now();
         rafId = requestAnimationFrame(animate);
       }
     };
 
-    const stopLoop = () => {
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId);
-        rafId = null;
-      }
-    };
+    controls.addEventListener('start', () => {
+      isInteracting = true;
+      scheduleRender();
+    });
+    controls.addEventListener('change', () => {
+      scheduleRender();
+    });
+    controls.addEventListener('end', () => {
+      isInteracting = false;
+      scheduleRender();
+    });
+
+    // Resize responsive
+    function resize() {
+      if (isDisposed || contextLost) return;
+      const width = stage.clientWidth || 320;
+      const height = stage.clientHeight || 320;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height, false);
+      scheduleRender();
+    }
+    const ro = new ResizeObserver(resize);
+    ro.observe(stage);
+    resize();
+
+    if (toggleBtn) {
+      const isEn = document.documentElement.lang === 'en';
+      const updateLabel = () => {
+        toggleBtn.textContent = isPlaying ? (isEn ? 'Pause' : 'Pausa') : isEn ? 'Play' : 'Avvia';
+      };
+      updateLabel();
+      toggleBtn.addEventListener('click', () => {
+        isPlaying = !isPlaying;
+        updateLabel();
+        if (isPlaying) {
+          scheduleRender();
+        } else if (!isInteracting) {
+          stopLoop();
+        }
+      });
+    }
 
     const io = new IntersectionObserver((entries) => {
-      if (entries[0]?.isIntersecting) startLoop();
+      isVisible = Boolean(entries[0]?.isIntersecting);
+      if (isVisible) scheduleRender();
       else stopLoop();
     });
     io.observe(stage);
+
+    const onContextLost = (e: Event) => {
+      e.preventDefault();
+      contextLost = true;
+      stopLoop();
+    };
+    const onContextRestored = () => {
+      contextLost = false;
+      scheduleRender();
+    };
+    canvas.addEventListener('webglcontextlost', onContextLost);
+    canvas.addEventListener('webglcontextrestored', onContextRestored);
+
+    window.addEventListener(
+      'pagehide',
+      () => {
+        isDisposed = true;
+        stopLoop();
+        ro.disconnect();
+        io.disconnect();
+        canvas.removeEventListener('webglcontextlost', onContextLost);
+        canvas.removeEventListener('webglcontextrestored', onContextRestored);
+        controls.dispose();
+        outerRing.geometry.dispose();
+        innerRing.geometry.dispose();
+        sealRing.geometry.dispose();
+        ballGeo.dispose();
+        cageTorus.geometry.dispose();
+        cageTorusBack.geometry.dispose();
+        steelMat.dispose();
+        ballMat.dispose();
+        cageMat.dispose();
+        accentRingMat.dispose();
+        envTex.dispose();
+        renderer.dispose();
+      },
+      { once: true }
+    );
   }
 
   document.querySelectorAll<HTMLElement>('[data-bearing-stage]').forEach(initBearingStage);

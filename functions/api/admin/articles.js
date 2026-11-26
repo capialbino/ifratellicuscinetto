@@ -84,12 +84,103 @@ async function generateAutoSeoAndTags(env, payload) {
   };
 }
 
+async function fetchArticlesViaGraphQL(env, repo, branch) {
+  const [owner, name] = repo.split('/');
+  if (!owner || !name) return null;
+
+  const query = `
+    query($owner: String!, $name: String!, $itExpr: String!, $enExpr: String!) {
+      repository(owner: $owner, name: $name) {
+        itDir: object(expression: $itExpr) {
+          ... on Tree {
+            entries {
+              name
+              type
+              oid
+              object {
+                ... on Blob {
+                  text
+                }
+              }
+            }
+          }
+        }
+        enDir: object(expression: $enExpr) {
+          ... on Tree {
+            entries {
+              name
+              type
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const res = await githubRequest(env, 'https://api.github.com/graphql', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query,
+      variables: {
+        owner,
+        name,
+        itExpr: `${branch}:src/content/articles`,
+        enExpr: `${branch}:src/content/articles/en`,
+      },
+    }),
+  });
+
+  if (!res.ok) return null;
+  const json = await res.json();
+  if (json.errors || !json.data?.repository?.itDir?.entries) return null;
+
+  const enSlugs = new Set(
+    (json.data.repository.enDir?.entries || [])
+      .filter((e) => e.type === 'blob' && /\.mdx?$/.test(e.name))
+      .map((e) => e.name.replace(/\.mdx?$/, ''))
+  );
+
+  return json.data.repository.itDir.entries
+    .filter((e) => e.type === 'blob' && /\.mdx?$/.test(e.name) && typeof e.object?.text === 'string')
+    .map((entry) => {
+      const { frontmatter, body } = parseMarkdownDocument(entry.object.text);
+      const slug = entry.name.replace(/\.mdx?$/, '');
+      return {
+        slug,
+        path: `src/content/articles/${entry.name}`,
+        sha: entry.oid,
+        hasEnglish: enSlugs.has(slug),
+        frontmatter: {
+          title: frontmatter.title || slug,
+          description: frontmatter.description || '',
+          pubDate: String(frontmatter.pubDate || '').slice(0, 10),
+          author: frontmatter.author || 'alessandro-capialbi',
+          category: frontmatter.category || 'Meccatronica & Hybrid',
+          tags: Array.isArray(frontmatter.tags) ? frontmatter.tags : [],
+          level: frontmatter.level || 'Intermedio',
+          draft: Boolean(frontmatter.draft),
+          coverImage: frontmatter.coverImage || '',
+        },
+        body,
+      };
+    });
+}
+
 export async function onRequestGet({ request, env }) {
   const auth = await requireAuth(request, env);
   if (auth.error) return auth.error;
 
-  const { branch } = getRepoConfig(env);
+  const { repo, branch } = getRepoConfig(env);
 
+  // Singola query GraphQL (evita il limite di 50 subrequest su Cloudflare Workers Free)
+  const graphqlArticles = await fetchArticlesViaGraphQL(env, repo, branch);
+  if (graphqlArticles) {
+    graphqlArticles.sort((a, b) => (b.frontmatter.pubDate || '').localeCompare(a.frontmatter.pubDate || ''));
+    return jsonResponse({ articles: graphqlArticles });
+  }
+
+  // Fallback REST se GraphQL non risponde
   const [itListRes, enListRes] = await Promise.all([
     githubRequest(env, `/contents/src/content/articles?ref=${encodeURIComponent(branch)}`),
     githubRequest(env, `/contents/src/content/articles/en?ref=${encodeURIComponent(branch)}`),
@@ -158,23 +249,34 @@ export async function onRequestPost({ request, env }) {
   let payload;
   try {
     const raw = await request.json();
-    payload = validateArticlePayload(raw);
+    payload = validateArticlePayload(raw, auth.session.author);
   } catch (err) {
     return jsonResponse({ error: err.message || 'Dati articolo non validi.' }, 400);
   }
 
   const { branch } = getRepoConfig(env);
-  const path = `src/content/articles/${payload.slug}.md`;
+  let path = `src/content/articles/${payload.slug}.md`;
 
-  let currentSha = payload.sha;
+  const currentSha = payload.sha;
   if (!currentSha) {
-    const checkRes = await githubRequest(
+    const [checkMd, checkMdx] = await Promise.all([
+      githubRequest(env, `/contents/src/content/articles/${payload.slug}.md?ref=${encodeURIComponent(branch)}`),
+      githubRequest(env, `/contents/src/content/articles/${payload.slug}.mdx?ref=${encodeURIComponent(branch)}`),
+    ]);
+    if (checkMd.ok || checkMdx.ok) {
+      return jsonResponse(
+        { error: 'Esiste già un articolo con questo titolo/slug. Modifica quello esistente oppure cambia titolo.' },
+        409
+      );
+    }
+  } else {
+    // Se stiamo aggiornando un .mdx esistente, mantieni l'estensione originale invece di creare un duplicato .md
+    const checkMdx = await githubRequest(
       env,
-      `/contents/${path}?ref=${encodeURIComponent(branch)}`
+      `/contents/src/content/articles/${payload.slug}.mdx?ref=${encodeURIComponent(branch)}`
     );
-    if (checkRes.ok) {
-      const existing = await checkRes.json();
-      currentSha = existing.sha;
+    if (checkMdx.ok) {
+      path = `src/content/articles/${payload.slug}.mdx`;
     }
   }
 
@@ -226,14 +328,17 @@ export async function onRequestDelete({ request, env }) {
   if (!slug) return jsonResponse({ error: 'Slug non valido.' }, 400);
 
   const { branch } = getRepoConfig(env);
-  const itPath = `src/content/articles/${slug}.md`;
-  const enPath = `src/content/articles/en/${slug}.md`;
-
-  const itGet = await githubRequest(env, `/contents/${itPath}?ref=${encodeURIComponent(branch)}`);
+  let itPath = `src/content/articles/${slug}.md`;
+  let itGet = await githubRequest(env, `/contents/${itPath}?ref=${encodeURIComponent(branch)}`);
+  if (!itGet.ok) {
+    itPath = `src/content/articles/${slug}.mdx`;
+    itGet = await githubRequest(env, `/contents/${itPath}?ref=${encodeURIComponent(branch)}`);
+  }
   if (!itGet.ok) {
     return jsonResponse({ error: 'Articolo non trovato su GitHub.' }, 404);
   }
   const itData = await itGet.json();
+  const enPath = `src/content/articles/en/${slug}.md`;
 
   const delIt = await githubRequest(env, `/contents/${itPath}`, {
     method: 'DELETE',

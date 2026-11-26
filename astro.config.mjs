@@ -14,112 +14,36 @@ const base =
 const isCloudflarePreview =
   Boolean(process.env.CF_PAGES_BRANCH) && process.env.CF_PAGES_BRANCH !== 'main';
 
-const katexMathTags = [
-  'math',
-  'semantics',
-  'mrow',
-  'mi',
-  'mo',
-  'mn',
-  'msup',
-  'msub',
-  'msubsup',
-  'mfrac',
-  'msqrt',
-  'mroot',
-  'mtable',
-  'mtr',
-  'mtd',
-  'mtext',
-  'mspace',
-  'mover',
-  'munder',
-  'munderover',
-  'annotation',
-];
-
-const katexSvgTags = ['svg', 'path', 'line', 'rect', 'g'];
+const SHIKI_PRE_STYLE =
+  /^(?:(?:background-color|color|--shiki-[a-z-]+|overflow-x|white-space|word-wrap)\s*:\s*(?:#[0-9a-fA-F]{3,8}|auto|pre-wrap|break-word)\s*;?\s*)+$/;
+const SHIKI_SPAN_STYLE =
+  /^(?:(?:color|background-color|--shiki-[a-z-]+|font-style|font-weight|text-decoration)\s*:\s*(?:#[0-9a-fA-F]{3,8}|italic|bold|underline|none)\s*;?\s*)+$/;
 
 const sanitizeSchema = {
   ...defaultSchema,
-  tagNames: [
-    ...(defaultSchema.tagNames || []),
-    ...katexMathTags,
-    ...katexSvgTags,
-    'span',
-    'video',
-  ],
+  tagNames: [...(defaultSchema.tagNames || [])],
   attributes: {
     ...(defaultSchema.attributes || {}),
-    '*': [
-      ...(defaultSchema.attributes?.['*'] || []),
-      'className',
-      'ariaHidden',
-      'aria-hidden',
-    ],
-    div: [
-      ...(defaultSchema.attributes?.div || []),
-      'className',
-      'dataSrc',
-      'dataLabel',
-      'data-src',
-      'data-label',
-    ],
-    span: [
-      ...(defaultSchema.attributes?.span || []),
-      'className',
-      'style',
-      'ariaHidden',
-      'aria-hidden',
-    ],
     pre: [
       ...(defaultSchema.attributes?.pre || []),
       'className',
-      'style',
       'tabIndex',
-      'dataLanguage',
-      'data-language',
+      ['dataLanguage', /^[a-z0-9_+-]+$/i],
+      ['style', SHIKI_PRE_STYLE],
     ],
     code: [
       ...(defaultSchema.attributes?.code || []),
-      'className',
-      'style',
+      ['className', /^language-[a-z0-9_+-]+$/i, 'math-inline', 'math-display'],
     ],
-    video: [
-      'className',
-      'src',
-      'autoplay',
-      'autoPlay',
-      'loop',
-      'muted',
-      'playsinline',
-      'playsInline',
-      'controls',
-      'ariaLabel',
-      'aria-label',
+    span: [
+      ...(defaultSchema.attributes?.span || []),
+      ['className', 'math-inline', 'math-display', 'line'],
+      ['style', SHIKI_SPAN_STYLE],
     ],
-    math: ['xmlns', 'display', 'className', 'style', 'ariaHidden', 'aria-hidden'],
-    annotation: ['encoding', 'className'],
-    svg: [
-      'xmlns',
-      'viewBox',
-      'width',
-      'height',
-      'preserveAspectRatio',
-      'className',
-      'style',
-      'ariaHidden',
-      'aria-hidden',
+    div: [
+      ...(defaultSchema.attributes?.div || []),
+      ['className', 'math-display'],
     ],
-    path: ['d', 'className', 'style'],
-    line: ['x1', 'y1', 'x2', 'y2', 'className', 'style'],
-    rect: ['x', 'y', 'width', 'height', 'className', 'style'],
-    g: ['className', 'style'],
-    ...Object.fromEntries(
-      katexMathTags
-        .filter((tag) => tag !== 'math' && tag !== 'annotation')
-        .map((tag) => [tag, ['className', 'style', 'ariaHidden', 'aria-hidden']])
-    ),
   },
 };
 
@@ -201,9 +125,9 @@ export default defineConfig({
   markdown: {
     remarkPlugins: [remarkMath],
     rehypePlugins: [
+      [rehypeSanitize, sanitizeSchema],
       rehypeKatex,
       rehypePrefixUploadsBase,
-      [rehypeSanitize, sanitizeSchema],
     ],
     shikiConfig: {
       themes: {

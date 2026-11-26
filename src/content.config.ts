@@ -14,7 +14,10 @@ const articles = defineCollection({
     tags: z.array(z.string()).default([]),
     level: z.enum(['Divulgativo', 'Intermedio', 'Tecnico / Avanzato']).default('Intermedio'),
     draft: z.boolean().default(false),
-    coverImage: z.string().optional(),
+    coverImage: z
+      .string()
+      .regex(/^\/(uploads|covers)\//, 'coverImage must start with /uploads/ or /covers/')
+      .optional(),
     sourceHash: z.string().optional(),
   }),
 });

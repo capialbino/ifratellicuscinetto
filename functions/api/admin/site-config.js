@@ -28,7 +28,11 @@ export async function onRequestGet({ request, env }) {
   );
   if (!res.ok) {
     const errText = await res.text();
-    return jsonResponse({ error: `Errore lettura config: ${errText}` }, res.status);
+    console.error(`GitHub site-config GET error (${res.status}):`, errText);
+    return jsonResponse(
+      { error: 'Errore durante la lettura della configurazione da GitHub.' },
+      res.status
+    );
   }
 
   const file = await res.json();
@@ -126,7 +130,7 @@ export async function onRequestPost({ request, env }) {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      message: 'style: aggiorna design e testi sito (via admin)',
+      message: `style: aggiorna design e testi sito (via admin: ${auth.session.author})`,
       content: utf8ToBase64(content),
       branch,
       ...(sha ? { sha } : {}),
@@ -135,7 +139,11 @@ export async function onRequestPost({ request, env }) {
 
   if (!putRes.ok) {
     const errText = await putRes.text();
-    return jsonResponse({ error: `Errore salvataggio config: ${errText}` }, putRes.status);
+    console.error(`GitHub site-config PUT error (${putRes.status}):`, errText);
+    return jsonResponse(
+      { error: 'Errore durante il salvataggio della configurazione su GitHub.' },
+      putRes.status
+    );
   }
 
   const result = await putRes.json();
