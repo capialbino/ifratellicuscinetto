@@ -20,13 +20,28 @@ const autoCoverExt = cleanSlug
     )
   : undefined;
 
-const resolvedSrc = coverImage
-  ? coverImage.startsWith('http://') || coverImage.startsWith('https://')
-    ? coverImage
-    : withBase(coverImage)
-  : autoCoverExt
-    ? withBase(`/covers/${cleanSlug}.${autoCoverExt}`)
-    : null;
+let resolvedSrc: string | null = null;
+let isInlineSvgData = false;
+
+if (coverImage) {
+  resolvedSrc =
+    coverImage.startsWith('http://') || coverImage.startsWith('https://')
+      ? coverImage
+      : withBase(coverImage);
+} else if (autoCoverExt === 'svg' && cleanSlug) {
+  const svgPath = path.resolve('public/covers', `${cleanSlug}.svg`);
+  const svgBuf = fs.readFileSync(svgPath);
+  // Inline small static SVG covers as data URI so mobile browsers render them
+  // on the first frame with zero extra HTTP requests and isolated SVG IDs.
+  if (svgBuf.length <= 24576) {
+    resolvedSrc = `data:image/svg+xml;base64,${svgBuf.toString('base64')}`;
+    isInlineSvgData = true;
+  } else {
+    resolvedSrc = withBase(`/covers/${cleanSlug}.svg`);
+  }
+} else if (autoCoverExt && cleanSlug) {
+  resolvedSrc = withBase(`/covers/${cleanSlug}.${autoCoverExt}`);
+}
 
 const isVideoCover = Boolean(resolvedSrc && /\.(mp4|webm)(?:[?#].*)?$/i.test(resolvedSrc));
 ---
@@ -44,7 +59,14 @@ const isVideoCover = Boolean(resolvedSrc && /\.(mp4|webm)(?:[?#].*)?$/i.test(res
       data-autoplay-cover
     />
   ) : resolvedSrc ? (
-    <img src={resolvedSrc} alt={title} loading={variant === 'featured' ? 'eager' : 'lazy'} decoding="async" />
+    <img
+      src={resolvedSrc}
+      alt={title}
+      width="640"
+      height="360"
+      loading={variant === 'featured' || isInlineSvgData ? 'eager' : 'lazy'}
+      decoding={isInlineSvgData ? 'sync' : 'async'}
+    />
   ) : category === 'Meccanica' ? (
     <svg viewBox="0 0 640 360" fill="none" aria-hidden="true" class="cover-svg">
       <defs>
